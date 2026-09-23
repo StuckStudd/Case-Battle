@@ -1,109 +1,109 @@
 # Case Battle — CS2 Upgrader Simulator
 
-Браузерный симулятор CS2 с апгрейдами, кейсами, контрактами и мини-играми. Все деньги в нём виртуальные: нет депозитов, вывода средств и транзакций Steam. Прогресс хранится в браузере.
+A browser simulator of CS2 skin upgrades, cases, trade-up contracts and mini-games. All money is virtual. There are no deposits, withdrawals or Steam transactions. Progress is stored in your browser.
 
-**▶ Играть:** upgraader.netlify.app
+**▶ Play:** https://upgraader.netlify.app
 
-![Апгрейд](docs/screenshots/upgrade.png)
+![Upgrade](docs/screenshots/upgrade.png)
 
-## Возможности
+## Features
 
-- **Апгрейд.** Ставка из нескольких скинов и баланса, пресеты x2/x4/x8 и 35/55/75%. После серии проигрышей шанс немного растёт.
-- **1895 скинов.** Всё оружие, ножи и перчатки CS2 с картинками из Steam. Цены реальные (Skinport), отдельно для каждого износа (FN–BS) и StatTrak™, от $0.03 до $35 000. Каждый день цены немного колеблются.
-- **Легендарные предметы.** 16 уникальных предметов стоимостью от $250 тыс. до $100 млн: Karambit «Blue Gem #387», StatTrak Howl с 4× iBUYPOWER Holo, прототипы симулятора.
-- **53 кейса:**
-  - 42 официальных кейса CS2 с настоящим содержимым и шансами (Mil-Spec 79,92% … ★ 0,26%, StatTrak 10%);
-  - 11 кейсов для хайроллеров, от $1 до $1 000 000.
-- **Баттлы кейсов** против ботов, в том числе на самых дорогих кейсах.
-- **Мини-игры:**
-  - Джекпот;
-  - Дуэль 1×1;
-  - Мега-джекпот;
-  - Crash со ставкой деньгами или скином (до x900);
-  - Рулетка;
-  - Мины;
-  - Плинко;
-  - Монетка.
-- **Контракты обмена, трейды с ботами, наклейки.** Наклейки выпадают из 4 капсул, в том числе EMS Katowice 2014.
-- **Редкие узоры:** Ruby, Sapphire, Black Pearl, Blue Gem, Full Fade, сверхнизкий float.
-- **Прогресс:**
-  - уровни;
-  - 24 достижения;
-  - ежедневный бонус;
-  - ежедневные и недельные задания;
-  - боевой пропуск;
-  - 114 коллекций;
-  - таблица лидеров с ботами-миллионерами.
-- **Интерфейс:**
-  - русский и английский языки;
-  - 3 цветовые темы;
-  - звуковые пакеты;
-  - экспорт и импорт сохранения;
-  - установка как приложение (PWA) с работой офлайн.
+- **Upgrade:** stake several skins plus balance, with x2/x4/x8 and 35/55/75% presets. A small luck bonus kicks in after a losing streak.
+- **1,895 skins:** every CS2 weapon, knife and glove finish, with Steam artwork. Prices come from real Skinport data, per wear (FN–BS) and StatTrak™, and range from $0.03 to $35,000. They drift a little every day.
+- **Legendary items:** 16 one-of-a-kind items from $250K to $100M, such as Karambit «Blue Gem #387», StatTrak Howl with 4× iBUYPOWER Holo, and simulator prototypes.
+- **53 cases:**
+  - 42 official CS2 cases with their real contents and odds (Mil-Spec 79.92% … ★ 0.26%, StatTrak 10%);
+  - 11 high-roller cases from $1 to $1,000,000.
+- **Case battles** against bots, including on the most expensive cases.
+- **Mini-games:**
+  - Jackpot;
+  - Duel 1v1;
+  - Mega jackpot;
+  - Crash with money or skins (up to x900);
+  - Roulette;
+  - Mines;
+  - Plinko;
+  - Coinflip.
+- **Trade-up contracts, bot trades and stickers.** Stickers come from 4 capsules, including EMS Katowice 2014.
+- **Rare patterns:** Ruby, Sapphire, Black Pearl, Blue Gem, Full Fade and ultra-low float.
+- **Progression:**
+  - levels;
+  - 24 achievements;
+  - daily bonus;
+  - daily and weekly quests;
+  - battle pass;
+  - 114 collections;
+  - a leaderboard with millionaire bots.
+- **Interface:**
+  - English and Russian;
+  - 3 color themes;
+  - sound packs;
+  - save export and import;
+  - installable as an app (PWA) with offline support.
 
-| Магазин и легенды | Кейсы |
+| Shop & legends | Cases |
 |---|---|
-| ![Магазин](docs/screenshots/shop.png) | ![Кейсы](docs/screenshots/cases.png) |
-| **Мега-джекпот** | **Лидеры** |
-| ![Мега-джекпот](docs/screenshots/mega-jackpot.png) | ![Лидеры](docs/screenshots/leaderboard.png) |
+| ![Shop](docs/screenshots/shop.png) | ![Cases](docs/screenshots/cases.png) |
+| **Mega jackpot** | **Leaderboard** |
+| ![Mega jackpot](docs/screenshots/mega-jackpot.png) | ![Leaderboard](docs/screenshots/leaderboard.png) |
 
-## Честность
+## Fairness
 
-- **Результат решается заранее.** Каждый исход определяется через `crypto.getRandomValues()` до начала анимации и сразу сохраняется, поэтому перезагрузка страницы его не отменяет.
-- **Выигрыш показывается после анимации.** В балансе и инвентаре он появляется только когда анимация закончилась.
-- **Отдача:**
-  - кейсы и капсулы в среднем возвращают 90% цены;
-  - контракты возвращают 95%;
-  - в джекпотах, апгрейде, crash и монетке преимущество казино около 5%;
-  - в рулетке преимущество около 6,7% (15 ячеек).
-- **Где настраивается:** `src/utils/config.ts`, `src/data/cases.ts` и `src/data/capsules.ts`.
+- **Decided before the animation.** Every outcome comes from `crypto.getRandomValues()` before the animation starts and is saved immediately, so reloading the page cannot change it.
+- **Shown after the animation.** Winnings appear in your balance and inventory only once the animation finishes.
+- **Return rates:**
+  - cases and capsules return 90% of their price on average;
+  - contracts return 95%;
+  - jackpots, upgrades, crash and coinflip have about a 5% house edge;
+  - roulette has about a 6.7% house edge (15 slots).
+- **Where to tune them:** `src/utils/config.ts`, `src/data/cases.ts` and `src/data/capsules.ts`.
 
-## Запуск локально
+## Running locally
 
-Нужен [Node.js](https://nodejs.org/) 20 или новее.
+Requires [Node.js](https://nodejs.org/) 20 or newer.
 
 ```bash
 npm install
 npm run dev        # http://localhost:5173
 ```
 
-| Команда | Что делает |
+| Command | What it does |
 |---|---|
-| `npm run dev` | Сервер разработки |
-| `npm run build` | Проверка типов и сборка в `dist/` |
-| `npm run preview` | Запуск собранной версии |
-| `npm run catalog` | Заново скачивает скины, кейсы, наклейки и актуальные цены |
+| `npm run dev` | Development server |
+| `npm run build` | Type check and build into `dist/` |
+| `npm run preview` | Serve the production build |
+| `npm run catalog` | Re-download skins, cases, stickers and current prices |
 
-## Публикация
+## Deployment
 
-Каждый push в ветку `main` собирает сайт и публикует его на GitHub Pages ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)).
+Every push to `main` builds the site and publishes it to GitHub Pages ([.github/workflows/deploy.yml](.github/workflows/deploy.yml)).
 
-При первом запуске Pages нужно включить вручную. Откройте **Settings → Pages**, в поле **Source** выберите **GitHub Actions**.
+Pages must be enabled once by hand: open **Settings → Pages** and set **Source** to **GitHub Actions**.
 
-Сборка использует относительные пути, поэтому папку `dist/` можно выложить и на любой другой статический хостинг: Netlify, Vercel, Cloudflare Pages.
+The build uses relative paths, so `dist/` also works on any other static host, such as Netlify, Vercel or Cloudflare Pages.
 
-## Стек и структура
+## Tech stack and structure
 
-React 19, TypeScript, Vite, Tailwind CSS v4, lucide-react. Бэкенда нет, всё состояние хранится в LocalStorage.
+React 19, TypeScript, Vite, Tailwind CSS v4 and lucide-react. There is no backend: all state lives in LocalStorage.
 
 ```
 src/
-  data/        каталог скинов, кейсы, наклейки, легенды, коллекции
-  store/       состояние игры: чистые переходы и сохранение
-  utils/       движки апгрейда, кейсов, игр и ботов
-  components/  интерфейс: рулетки, игры, карточки
-  pages/       страницы приложения
-  i18n/        переводы RU / EN
+  data/        skin catalog, cases, stickers, legendary items, collections
+  store/       game state: pure transitions and persistence
+  utils/       upgrade, case, game and bot engines
+  components/  UI: roulettes, games, cards
+  pages/       app pages
+  i18n/        EN / RU translations
 scripts/
-  build-catalog.mjs   генератор каталога
+  build-catalog.mjs   catalog generator
 public/
   sw.js, manifest     PWA
 ```
 
-## Источники данных
+## Data sources
 
-- Скины, кейсы и наклейки: [ByMykel/CSGO-API](https://github.com/ByMykel/CSGO-API).
-- Цены: публичный API [Skinport](https://docs.skinport.com/).
-- Картинки загружаются с CDN Steam.
+- Skins, cases and stickers: [ByMykel/CSGO-API](https://github.com/ByMykel/CSGO-API).
+- Prices: the public [Skinport](https://docs.skinport.com/) API.
+- Images are loaded from the Steam CDN.
 
-Проект создан в развлекательных целях и не связан с Valve или Steam. Counter-Strike и названия предметов принадлежат их правообладателям.
+This is a fan project for entertainment only and is not affiliated with Valve or Steam. Counter-Strike and item names belong to their respective owners.

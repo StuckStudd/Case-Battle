@@ -143,6 +143,15 @@ export interface HiloGame {
   multiplier: number;
 }
 
+/** Parts of the game an admin luck multiplier applies to. */
+export type LuckScope = 'upgrade' | 'cases' | 'games' | 'jackpots';
+
+export interface AdminLuck {
+  /** 1 = fair game; 2 = x2 luck, and so on. */
+  multiplier: number;
+  scopes: LuckScope[];
+}
+
 /** Per-game totals shown in the profile. */
 export interface GameStat {
   played: number;
@@ -317,6 +326,8 @@ export interface AppState {
   gameStats: Record<string, GameStat>;
   /** Newest first, capped (see LEDGER_LIMIT). */
   ledger: LedgerEntry[];
+  /** Luck set in the admin panel. */
+  adminLuck: AdminLuck;
 }
 
 /** Translatable failure reasons returned by store actions (see i18n "error.*"). */

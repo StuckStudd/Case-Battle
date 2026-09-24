@@ -6,6 +6,7 @@ import { TRADE_OFFERS } from './config';
 import { rollDrop } from './dropTable';
 import { itemValue } from './itemValue';
 import { levelFromXp, getNetWorth } from './progression';
+import { bestOf } from './adminLuck';
 import { createId, pickRandom, secureRandom } from './random';
 
 export const BOT_NAMES = [
@@ -115,12 +116,12 @@ export interface BattleResult {
 }
 
 /** Everyone opens `rounds` cases; the highest total wins every drop. Decided before any animation. */
-export function runBattle(def: CaseDef, bots: number, rounds: number): BattleResult {
+export function runBattle(def: CaseDef, bots: number, rounds: number, luck = 1): BattleResult {
   const table = getCaseTable(def);
   const names = [...BOT_NAMES].sort(() => secureRandom() - 0.5).slice(0, bots);
   const players: BattlePlayer[] = [{ name: '', isYou: true, drops: [], total: 0 }, ...names.map((name) => ({ name, isYou: false, drops: [], total: 0 }))];
   for (const player of players) {
-    for (let r = 0; r < rounds; r++) player.drops.push(rollDrop(table));
+    for (let r = 0; r < rounds; r++) player.drops.push(player.isYou ? bestOf(luck, () => rollDrop(table), (s) => s.price) : rollDrop(table));
     player.total = Math.round(player.drops.reduce((sum, s) => sum + s.price, 0) * 100) / 100;
   }
   const best = Math.max(...players.map((p) => p.total));
@@ -177,7 +178,7 @@ function botDeposit(target: number): Skin[] {
 }
 
 /** Bots join a pot sized to the player's deposit; the winner is drawn by deposited value. Decided before any animation. */
-export function runJackpot(yourSkins: Skin[], yourValue: number, mode: JackpotMode = 'classic'): JackpotResult {
+export function runJackpot(yourSkins: Skin[], yourValue: number, mode: JackpotMode = 'classic', luck = 1): JackpotResult {
   const { bots: [minBots, maxBots], share: [minShare, maxShare] } = JACKPOT_MODES[mode];
   const botCount = minBots + Math.floor(secureRandom() * (maxBots - minBots + 1));
   const names = [...BOT_NAMES].sort(() => secureRandom() - 0.5).slice(0, botCount);
@@ -188,15 +189,16 @@ export function runJackpot(yourSkins: Skin[], yourValue: number, mode: JackpotMo
   });
   const players = [{ name: '', isYou: true, skins: yourSkins, value: yourValue, weight: yourValue * (1 - JACKPOT_EDGE) }, ...bots];
   const totalWeight = players.reduce((sum, p) => sum + p.weight, 0);
-  let ticket = secureRandom() * totalWeight;
-  let winner = players.length - 1;
-  for (let i = 0; i < players.length; i++) {
-    ticket -= players[i].weight;
-    if (ticket < 0) {
-      winner = i;
-      break;
+  const draw = () => {
+    let ticket = secureRandom() * totalWeight;
+    for (let i = 0; i < players.length; i++) {
+      ticket -= players[i].weight;
+      if (ticket < 0) return i;
     }
-  }
+    return players.length - 1;
+  };
+  // With admin luck the pot is drawn several times and the player wins if any draw picks them.
+  const winner = bestOf(luck, draw, (i) => (i === 0 ? 1 : 0));
   return {
     entries: players.map(({ weight, ...p }) => ({ ...p, chance: weight / totalWeight })),
     winner,

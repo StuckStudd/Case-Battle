@@ -67,6 +67,7 @@ import { pickRandom, secureRandom } from '../utils/random';
 import { itemValue, rollSpecial } from '../utils/itemValue';
 import { currentDay, getDailyStatus, isRareDrop, levelFromXp, xpForWager } from '../utils/progression';
 import { createId } from '../utils/random';
+import { bestOf, hitStands, luckFor, LUCK_SCOPES } from '../utils/adminLuck';
 import { UpgradeError, getLuckBonus, getStakeValue, rollUpgrade } from '../utils/upgradeEngine';
 
 export type Transition<T> = { ok: true; state: AppState; value: T } | { ok: false; error: ErrorCode };
@@ -153,6 +154,7 @@ export function createInitialState(now = Date.now()): AppState {
     promoClaimed: [],
     gameStats: {},
     ledger: [],
+    adminLuck: { multiplier: 1, scopes: [...LUCK_SCOPES] },
   };
 }
 
@@ -275,7 +277,7 @@ export function beginUpgrade(state: AppState, request: UpgradeRequest): Transiti
       stakeValue,
       balanceUsed,
       target,
-      luckBonus: getLuckBonus(state.luck, stakeValue, state.prestige),
+      luckBonus: getLuckBonus(state.luck, stakeValue, state.prestige, luckFor(state, 'upgrade')),
     });
   } catch (error) {
     return fail(error instanceof UpgradeError ? error.code : 'targetInvalid');
@@ -367,7 +369,7 @@ export function isFreeCaseAvailable(state: AppState): boolean {
 /** Opens the free case: the drop is decided here and added to the inventory immediately. */
 export function openFreeCase(state: AppState, now = Date.now()): Transition<InventoryItem> {
   if (!isFreeCaseAvailable(state)) return fail('freeCaseUnavailable');
-  const item = luckyItem(rollFreeCase(), 'case', now);
+  const item = luckyItem(bestOf(luckFor(state, 'cases'), rollFreeCase, (s) => s.price), 'case', now);
   return { ok: true, value: item, state: bump(addItems(state, [item]), { freeCasesOpened: 1 }) };
 }
 
@@ -386,7 +388,8 @@ export function openPaidCase(state: AppState, caseId: string, now = Date.now()):
   if (!hasKey && levelFromXp(state.xp) < def.minLevel) return fail('caseLocked');
   const paid = payForBox(state, caseId, def.price);
   if (!paid.ok) return paid;
-  const item = luckyItem(rollDrop(getCaseTable(def)), 'case', now);
+  const table = getCaseTable(def);
+  const item = luckyItem(bestOf(luckFor(state, 'cases'), () => rollDrop(table), (s) => s.price), 'case', now);
   return { ok: true, value: item, state: bump(addItems(paid.state, [item]), { casesOpened: 1 }) };
 }
 
@@ -395,7 +398,8 @@ export function openCapsule(state: AppState, capsuleId: string, now = Date.now()
   if (!def) return fail('caseUnknown');
   const paid = payForBox(state, capsuleId, def.price);
   if (!paid.ok) return paid;
-  const sticker = rollDrop(getCapsuleTable(def));
+  const capsuleTable = getCapsuleTable(def);
+  const sticker = bestOf(luckFor(state, 'cases'), () => rollDrop(capsuleTable), (s) => s.price);
   const item: StickerItem = { uid: createId('stk'), stickerId: sticker.id, acquiredAt: now };
   return { ok: true, value: item, state: bump({ ...paid.state, stickers: [item, ...paid.state.stickers] }, { casesOpened: 1 }) };
 }
@@ -452,7 +456,7 @@ export function playBattle(state: AppState, caseId: string, bots: number, rounds
   const cost = roundMoney(def.price * rounds);
   if (state.balance < cost) return fail('insufficientBalance');
 
-  const result = runBattle(def, bots, rounds);
+  const result = runBattle(def, bots, rounds, luckFor(state, 'cases'));
   const won = result.winner === 0;
   const wonItems = won ? result.players.flatMap((p) => p.drops.map((skin) => luckyItem(skin, 'battle', now))) : [];
   let next = withWager(settleBattle({ ...state, balance: roundMoney(state.balance - cost) }), cost);
@@ -488,7 +492,7 @@ export function playJackpot(state: AppState, uids: string[], mode: JackpotMode =
     skins.push(skin);
   }
   const value = roundMoney(items.reduce((sum, i) => sum + itemValue(i), 0));
-  const result = runJackpot(skins, value, mode);
+  const result = runJackpot(skins, value, mode, luckFor(state, 'jackpots'));
   const won = result.winner === 0;
   let next = bump(withWager(settleJackpot(removeItems(state, unique)), value), { jackpotsPlayed: 1, jackpotsWon: won ? 1 : 0 });
   if (won) {
@@ -539,7 +543,7 @@ export function signContract(state: AppState, uids: string[], now = Date.now()):
   const check = checkContract(skins);
   if (!check.ok) return fail(check.reason);
 
-  const item = luckyItem(rollDrop(check.table), 'contract', now);
+  const item = luckyItem(bestOf(luckFor(state, 'cases'), () => rollDrop(check.table), (s) => s.price), 'contract', now);
   const next = addItems(withWager(removeItems(state, unique), check.inputValue), [item]);
   return { ok: true, value: item, state: bump(next, { contractsCompleted: 1 }) };
 }
@@ -557,7 +561,7 @@ export function playCoinflip(state: AppState, bet: number, pick: CoinSide): Tran
   const amount = roundMoney(bet);
   const error = validBet(state, amount);
   if (error) return fail(error);
-  const side = flipCoin();
+  const side = bestOf(luckFor(state, 'games'), flipCoin, (s) => (s === pick ? 1 : 0));
   const won = side === pick;
   const payout = won ? coinflipPayout(amount) : 0;
   return {
@@ -580,7 +584,7 @@ export function playRoulette(state: AppState, bet: number, color: RouletteColor)
   const amount = roundMoney(bet);
   const error = validBet(state, amount);
   if (error) return fail(error);
-  const slot = spinRoulette();
+  const slot = bestOf(luckFor(state, 'games'), spinRoulette, (s) => (ROULETTE_SLOTS[s] === color ? ROULETTE_PAYOUT[color] : 0));
   const landed = ROULETTE_SLOTS[slot];
   const payout = landed === color ? roundMoney(amount * ROULETTE_PAYOUT[color]) : 0;
   return {
@@ -601,7 +605,7 @@ export function playPlinko(state: AppState, bet: number, risk: PlinkoRisk): Tran
   const amount = roundMoney(bet);
   const error = validBet(state, amount);
   if (error) return fail(error);
-  const { path, bin } = dropPlinko();
+  const { path, bin } = bestOf(luckFor(state, 'games'), dropPlinko, (d) => PLINKO_MULTIPLIERS[risk][d.bin]);
   const multiplier = PLINKO_MULTIPLIERS[risk][bin];
   const payout = roundMoney(amount * multiplier);
   return {
@@ -634,11 +638,18 @@ export interface MinesReveal {
 }
 
 export function revealMine(state: AppState, cell: number): Transition<MinesReveal> {
-  const game = state.pendingMines;
+  let game = state.pendingMines;
   if (!game) return fail('noMines');
   if (!Number.isInteger(cell) || cell < 0 || cell >= MINES_GRID || game.revealed.includes(cell)) return fail('invalidMines');
   if (game.mines.includes(cell)) {
-    return { ok: true, value: { hit: true, multiplier: 0, payout: 0, mines: game.mines }, state: { ...state, pendingMines: null } };
+    const { mines, revealed: opened } = game;
+    const hidden = MINES_GRID - opened.length;
+    const free = Array.from({ length: MINES_GRID }, (_, i) => i).filter((i) => i !== cell && !mines.includes(i) && !opened.includes(i));
+    // Admin luck: the mine may move to another hidden tile instead.
+    if (free.length === 0 || hitStands(luckFor(state, 'games'), game.mines.length / hidden)) {
+      return { ok: true, value: { hit: true, multiplier: 0, payout: 0, mines: game.mines }, state: { ...state, pendingMines: null } };
+    }
+    game = { ...game, mines: game.mines.map((m) => (m === cell ? pickRandom(free) : m)) };
   }
   const revealed = [...game.revealed, cell];
   const multiplier = minesMultiplier(game.mines.length, revealed.length);
@@ -689,7 +700,7 @@ export function startCrash(state: AppState, stake: CrashStake, autoCashout: numb
     const round: CrashRound = {
       id: createId('crash'),
       bet: value,
-      crashPoint: generateCrashPoint(),
+      crashPoint: bestOf(luckFor(state, 'games'), generateCrashPoint, (m) => m),
       autoCashout: auto,
       startedAt: now,
       skinStake: { uids, skinIds: items.map((i) => i.skinId) },
@@ -707,7 +718,7 @@ export function startCrash(state: AppState, stake: CrashStake, autoCashout: numb
   const round: CrashRound = {
     id: createId('crash'),
     bet: amount,
-    crashPoint: generateCrashPoint(),
+    crashPoint: bestOf(luckFor(state, 'games'), generateCrashPoint, (m) => m),
     autoCashout: auto,
     startedAt: now,
     skinStake: null,
@@ -899,12 +910,20 @@ export interface TowersStep {
 }
 
 export function climbTowers(state: AppState, tile: number): Transition<TowersStep> {
-  const game = state.pendingTowers;
+  let game = state.pendingTowers;
   if (!game) return fail('noTowers');
   const floor = game.picks.length;
   if (!Number.isInteger(tile) || tile < 0 || tile >= TOWERS_LAYOUT[game.difficulty].tiles) return fail('invalidTowers');
   if (game.bombs[floor].includes(tile)) {
-    return { ok: true, value: { hit: true, multiplier: 0, payout: 0, bombs: game.bombs }, state: { ...state, pendingTowers: null } };
+    const { tiles, bombs } = TOWERS_LAYOUT[game.difficulty];
+    const floorBombs = game.bombs[floor];
+    const free = Array.from({ length: tiles }, (_, i) => i).filter((i) => !floorBombs.includes(i));
+    // Admin luck: the bomb may sit on another tile of this floor instead.
+    if (free.length === 0 || hitStands(luckFor(state, 'games'), bombs / tiles)) {
+      return { ok: true, value: { hit: true, multiplier: 0, payout: 0, bombs: game.bombs }, state: { ...state, pendingTowers: null } };
+    }
+    const moved = game.bombs[floor].map((b) => (b === tile ? pickRandom(free) : b)).sort((a, b) => a - b);
+    game = { ...game, bombs: game.bombs.map((f, i) => (i === floor ? moved : f)) };
   }
   const picks = [...game.picks, tile];
   const multiplier = towersMultiplier(game.difficulty, picks.length);
@@ -946,8 +965,13 @@ export function guessHilo(state: AppState, guess: HiloGuess): Transition<HiloSte
   if (!game) return fail('noHilo');
   const current = game.cards[game.index];
   if ((guess !== 'higher' && guess !== 'lower') || hiloChance(current, guess) >= 1) return fail('invalidHilo');
-  const next = game.cards[game.index + 1];
-  const win = guess === 'higher' ? next >= current : next <= current;
+  const wins = (card: number) => (guess === 'higher' ? card >= current : card <= current);
+  let next = game.cards[game.index + 1];
+  // Admin luck: a losing card stands with probability (1-p)^(luck-1), otherwise a winning card comes instead.
+  if (!wins(next) && !hitStands(luckFor(state, 'games'), 1 - hiloChance(current, guess))) {
+    next = pickRandom(Array.from({ length: 13 }, (_, i) => i + 1).filter(wins));
+  }
+  const win = wins(next);
   if (!win) return { ok: true, value: { win: false, card: next, multiplier: 0, payout: 0 }, state: { ...state, pendingHilo: null } };
   const multiplier = Math.floor(game.multiplier * hiloStep(current, guess) * 100) / 100;
   const index = game.index + 1;
@@ -1005,9 +1029,13 @@ export interface WheelSpin extends PrizeResult {
 export function spinWheel(state: AppState, now = Date.now()): Transition<WheelSpin> {
   if (now < wheelReadyAt(state)) return fail('wheelCooldown');
   const total = WHEEL_SEGMENTS.reduce((sum, s) => sum + s.weight, 0);
-  let roll = secureRandom() * total;
-  let index = WHEEL_SEGMENTS.findIndex((s) => (roll -= s.weight) < 0);
-  if (index < 0) index = WHEEL_SEGMENTS.length - 1;
+  const spinOnce = () => {
+    let roll = secureRandom() * total;
+    const i = WHEEL_SEGMENTS.findIndex((s) => (roll -= s.weight) < 0);
+    return i < 0 ? WHEEL_SEGMENTS.length - 1 : i;
+  };
+  // Rare segments are the valuable ones, so with admin luck the rarest drawn segment wins.
+  const index = bestOf(luckFor(state, 'cases'), spinOnce, (i) => -WHEEL_SEGMENTS[i].weight);
   const segment = WHEEL_SEGMENTS[index];
   const granted = grantPrize({ ...state, wheelLastSpin: now }, segment.prize, now);
   return { ok: true, value: { ...granted.result, segment, index }, state: granted.state };

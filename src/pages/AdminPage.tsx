@@ -1,4 +1,4 @@
-import { Coins, Download, History, KeyRound, LayoutDashboard, Lock, LogOut, RotateCcw, Save, Search, ShieldCheck, Trash2, Undo2, Wrench } from 'lucide-react';
+import { Coins, Download, History, KeyRound, LayoutDashboard, Lock, LogOut, RotateCcw, Save, Search, ShieldCheck, Sparkles, Trash2, Undo2, Wrench } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { PageHeader } from '../components/common';
 import { ConfirmModal } from '../components/Modal';
@@ -15,7 +15,8 @@ import { deleteSnapshot, ledgerCsv, listSnapshots, saveSnapshot } from '../store
 import type { Snapshot } from '../store/admin';
 import { useStore } from '../store/inventoryStore';
 import { summarizeLedger } from '../store/ledger';
-import type { InventoryItem, LedgerEntry } from '../types/types';
+import type { InventoryItem, LedgerEntry, LuckScope } from '../types/types';
+import { LUCK_SCOPES, MAX_ADMIN_LUCK } from '../utils/adminLuck';
 import { formatDateTime, formatMoney, formatSignedMoney } from '../utils/format';
 import { itemValue } from '../utils/itemValue';
 import { getNetWorth } from '../utils/progression';
@@ -160,6 +161,7 @@ const ACTION_LABELS: Record<string, [en: string, ru: string]> = {
   adminRevert: ['Admin: rollback', 'Админ: откат'],
   adminRevertSince: ['Admin: rollback', 'Админ: откат'],
   adminRestoreSnapshot: ['Admin: restore point', 'Админ: точка восстановления'],
+  adminSetLuck: ['Admin: luck', 'Админ: удача'],
 };
 
 function useActionLabel() {
@@ -677,9 +679,117 @@ function RestorePoints() {
   );
 }
 
+// ---------------------------------------------------------------- luck
+
+const LUCK_PRESETS = [1, 1.5, 2, 3, 4, 5, 10, 25];
+const SCOPE_LABELS: Record<LuckScope, TKey> = {
+  upgrade: 'admin.luckUpgrade',
+  cases: 'admin.luckCases',
+  games: 'admin.luckGames',
+  jackpots: 'admin.luckJackpots',
+};
+
+/** Chance of winning at least once in `luck` tries (fractional luck interpolates). */
+const bestOfChance = (p: number, luck: number) => 1 - Math.pow(1 - p, luck);
+
+function LuckPanel() {
+  const t = useT();
+  const toast = useToast();
+  const { state, adminSetLuck } = useStore();
+  const [value, setValue] = useState(String(state.adminLuck.multiplier));
+  const [scopes, setScopes] = useState<LuckScope[]>(state.adminLuck.scopes);
+  const luck = Math.min(MAX_ADMIN_LUCK, Math.max(1, Number(value.replace(',', '.')) || 1));
+  const active = state.adminLuck.multiplier > 1 && state.adminLuck.scopes.length > 0;
+
+  const apply = (multiplier: number, list: LuckScope[]) => {
+    adminSetLuck(multiplier, list);
+    toast({ type: 'success', title: multiplier > 1 ? t('admin.luckSet', { m: multiplier }) : t('admin.luckOff') });
+  };
+
+  const examples: [TKey, string, string][] = [
+    ['admin.luckExUpgrade', '35%', `${Math.min(95, 35 * luck).toFixed(1)}%`],
+    ['admin.luckExCoinflip', '50%', `${(bestOfChance(0.5, luck) * 100).toFixed(1)}%`],
+    ['admin.luckExKnife', '0.26%', `${(bestOfChance(0.0026, luck) * 100).toFixed(2)}%`],
+    ['admin.luckExJackpot', '20%', `${(bestOfChance(0.2, luck) * 100).toFixed(1)}%`],
+  ];
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+      <section className="panel space-y-4 p-5">
+        <div className={cx('rounded-xl border p-3 text-sm', active ? 'border-amber-400/40 bg-amber-400/10 text-amber-200' : 'border-line text-slate-400')}>
+          {active ? t('admin.luckActive', { m: state.adminLuck.multiplier }) : t('admin.luckFair')}
+        </div>
+        <div>
+          <div className="mb-1.5 text-xs text-slate-400">{t('admin.luckMultiplier')}</div>
+          <div className="flex flex-wrap gap-1.5">
+            {LUCK_PRESETS.map((m) => (
+              <button key={m} type="button" className="chip px-3 py-2" data-active={luck === m} onClick={() => setValue(String(m))}>
+                {m === 1 ? t('admin.luckNormal') : `x${m}`}
+              </button>
+            ))}
+          </div>
+          <label className="mt-3 flex items-center gap-2 text-sm text-slate-300">
+            {t('admin.luckCustom')}
+            <span className="text-slate-500">x</span>
+            <input value={value} onChange={(e) => setValue(e.target.value)} inputMode="decimal" aria-label={t('admin.luckCustom')} className="input h-10 w-28" />
+            <span className="text-xs text-slate-500">1–{MAX_ADMIN_LUCK}</span>
+          </label>
+        </div>
+        <div>
+          <div className="mb-1.5 text-xs text-slate-400">{t('admin.luckWhere')}</div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {LUCK_SCOPES.map((scope) => (
+              <label key={scope} className="flex cursor-pointer items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm text-slate-200">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-amber-400"
+                  checked={scopes.includes(scope)}
+                  onChange={(e) => setScopes((list) => (e.target.checked ? [...list, scope] : list.filter((s) => s !== scope)))}
+                />
+                {t(SCOPE_LABELS[scope])}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" className="btn btn-primary h-12" onClick={() => apply(luck, scopes)}>
+            <Sparkles size={16} /> {t('admin.luckApply')}
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost h-12"
+            onClick={() => {
+              setValue('1');
+              apply(1, scopes);
+            }}
+          >
+            {t('admin.luckReset')}
+          </button>
+        </div>
+      </section>
+
+      <section className="panel p-5">
+        <h2 className="mb-1 font-display text-lg font-bold text-white">{t('admin.luckPreview', { m: luck })}</h2>
+        <p className="mb-3 text-xs text-slate-500">{t('admin.luckHow')}</p>
+        <table className="w-full text-sm">
+          <tbody>
+            {examples.map(([key, before, after]) => (
+              <tr key={key} className="border-t border-line">
+                <td className="py-2 text-slate-300">{t(key)}</td>
+                <td className="py-2 text-right tabular-nums text-slate-500">{before}</td>
+                <td className="py-2 pl-3 text-right font-semibold tabular-nums text-emerald-400">{after}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- page
 
-type Tab = 'overview' | 'ledger' | 'tools' | 'snapshots';
+type Tab = 'overview' | 'ledger' | 'tools' | 'luck' | 'snapshots';
 
 export function AdminPage() {
   const t = useT();
@@ -692,6 +802,7 @@ export function AdminPage() {
     ['overview', 'admin.tabOverview', LayoutDashboard],
     ['ledger', 'admin.tabLedger', History],
     ['tools', 'admin.tabTools', Wrench],
+    ['luck', 'admin.tabLuck', Sparkles],
     ['snapshots', 'admin.tabSnapshots', Save],
   ];
 
@@ -723,6 +834,7 @@ export function AdminPage() {
       {tab === 'overview' && <Overview />}
       {tab === 'ledger' && <Ledger />}
       {tab === 'tools' && <Tools />}
+      {tab === 'luck' && <LuckPanel />}
       {tab === 'snapshots' && <RestorePoints />}
     </div>
   );

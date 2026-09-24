@@ -3,6 +3,7 @@ import { FRAMES } from '../data/season';
 import { SKIN_MAP } from '../data/skinData';
 import { STICKER_MAP } from '../data/stickers';
 import type {
+  AdminLuck,
   AppState,
   CrashRound,
   DailyState,
@@ -14,6 +15,7 @@ import type {
   InventoryItem,
   ItemOrigin,
   LedgerEntry,
+  LuckScope,
   MinesGame,
   QuestState,
   SeasonState,
@@ -35,6 +37,7 @@ import {
   STORAGE_VERSION,
   TOWERS_FLOORS,
 } from '../utils/config';
+import { LUCK_SCOPES, MAX_ADMIN_LUCK } from '../utils/adminLuck';
 import { roundMoney } from '../utils/format';
 import { TOWERS_LAYOUT } from '../utils/gamesEngine';
 import { LEDGER_LIMIT } from './ledger';
@@ -359,6 +362,14 @@ function sanitizeLedger(raw: unknown): LedgerEntry[] {
   return out;
 }
 
+function sanitizeAdminLuck(raw: unknown): AdminLuck {
+  const fallback: AdminLuck = { multiplier: 1, scopes: [...LUCK_SCOPES] };
+  if (!isRecord(raw)) return fallback;
+  const multiplier = finiteNumber(raw.multiplier);
+  const scopes = (stringArray(raw.scopes) ?? []).filter((s): s is LuckScope => (LUCK_SCOPES as string[]).includes(s));
+  return { multiplier: multiplier === null ? 1 : Math.min(MAX_ADMIN_LUCK, Math.max(1, multiplier)), scopes };
+}
+
 function sanitizeGameStats(raw: unknown): Record<string, GameStat> {
   if (!isRecord(raw)) return {};
   const out: Record<string, GameStat> = {};
@@ -533,6 +544,7 @@ export function sanitizeState(raw: unknown): { state: AppState; repaired: boolea
     promoClaimed: stringArray(raw.promoClaimed) ?? [],
     gameStats: sanitizeGameStats(raw.gameStats),
     ledger: sanitizeLedger(raw.ledger),
+    adminLuck: sanitizeAdminLuck(raw.adminLuck),
   };
 
   // An upgrade interrupted by a reload is settled with its already-decided result.

@@ -1,4 +1,4 @@
-export const STARTING_BALANCE = 5000;
+export const STARTING_BALANCE = 200;
 
 /** Fraction removed from the fair chance. 0.05 = 5% house edge. */
 export const HOUSE_EDGE = 0.05;

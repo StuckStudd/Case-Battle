@@ -12,7 +12,7 @@ import type {
   UpgradeOutcome,
 } from '../types/types';
 import type { CoinSide, PlinkoRisk, RouletteColor } from '../utils/gamesEngine';
-import { giveItems, giveKeys, grantMoney, removeItem, resetCooldowns, setBalance } from './admin';
+import { giveItems, giveKeys, grantMoney, removeItem, resetCooldowns, setBalance, setLuck } from './admin';
 import { appendLedger, diffLedger, revertEntry, revertSince } from './ledger';
 import type { RevertResult } from './ledger';
 import { settleProgress } from './progress';
@@ -88,7 +88,7 @@ import type {
 } from './transitions';
 import type { JackpotMode } from '../utils/botEngine';
 import type { HiloGuess } from '../utils/gamesEngine';
-import type { HiloGame, TowersDifficulty, TowersGame } from '../types/types';
+import type { HiloGame, LuckScope, TowersDifficulty, TowersGame } from '../types/types';
 
 export type ActionResult<T> = { ok: true; value: T } | { ok: false; error: ErrorCode };
 
@@ -143,6 +143,7 @@ export interface StoreValue {
   adminRemoveItem: (uid: string) => void;
   adminGiveKeys: (id: string, count: number) => void;
   adminResetCooldowns: () => void;
+  adminSetLuck: (multiplier: number, scopes: LuckScope[]) => void;
   adminRevert: (entryId: string) => RevertResult | null;
   adminRevertSince: (entryId: string) => RevertResult | null;
   adminRestoreSnapshot: (raw: unknown) => void;
@@ -265,6 +266,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       adminRemoveItem: (uid: string) => update((s) => removeItem(s, uid)),
       adminGiveKeys: (id: string, count: number) => update((s) => giveKeys(s, id, count)),
       adminResetCooldowns: () => update((s) => resetCooldowns(s)),
+      adminSetLuck: (multiplier: number, scopes: LuckScope[]) => update((s) => setLuck(s, multiplier, scopes)),
       adminRevert: (entryId: string): RevertResult | null => {
         const result = revertEntry(stateRef.current, entryId);
         if (result) commit(result.state);

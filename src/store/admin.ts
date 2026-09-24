@@ -1,5 +1,6 @@
 import { getSkin } from '../data/skinData';
-import type { AppState, InventoryItem } from '../types/types';
+import type { AppState, InventoryItem, LuckScope } from '../types/types';
+import { LUCK_SCOPES, MAX_ADMIN_LUCK } from '../utils/adminLuck';
 import { roundMoney } from '../utils/format';
 import { createId } from '../utils/random';
 
@@ -34,6 +35,13 @@ export function giveKeys(state: AppState, id: string, count: number): AppState {
   if (value > 0) keys[id] = value;
   else delete keys[id];
   return { ...state, keys };
+}
+
+/** Sets the luck multiplier (1 = fair) and the parts of the game it applies to. */
+export function setLuck(state: AppState, multiplier: number, scopes: LuckScope[]): AppState {
+  if (!Number.isFinite(multiplier)) return state;
+  const value = Math.round(Math.min(MAX_ADMIN_LUCK, Math.max(1, multiplier)) * 100) / 100;
+  return { ...state, adminLuck: { multiplier: value, scopes: LUCK_SCOPES.filter((s) => scopes.includes(s)) } };
 }
 
 /** Makes the daily reward and the fortune wheel available right away. */

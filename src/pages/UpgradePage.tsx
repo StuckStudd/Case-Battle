@@ -12,6 +12,7 @@ import type { WheelStatus } from '../components/UpgradeRoulette';
 import { SKINS, getSkin } from '../data/skinData';
 import { useSound } from '../hooks/useSound';
 import { useStore } from '../store/inventoryStore';
+import { luckFor } from '../utils/adminLuck';
 import type { HistoryEntry, Page, Skin, UpgradeOutcome } from '../types/types';
 import { celebrate } from '../utils/effects';
 import { useT } from '../i18n';
@@ -78,7 +79,7 @@ export function UpgradePage({ selection, onSelectionChange, onNavigate, onOpenFr
   const stakeTotal = getStakeValue({ values: stakeItems.map((s) => s.value), balance: stakeBalance });
   const target = run?.target ?? selectedTarget;
   // The shown chance must match the roll, so it uses the same luck bonus the store will apply.
-  const luckBonus = run ? run.outcome.luckBonus : getLuckBonus(state.luck, stakeTotal, state.prestige);
+  const luckBonus = run ? run.outcome.luckBonus : getLuckBonus(state.luck, stakeTotal, state.prestige, luckFor(state, 'upgrade'));
   const validation = validateUpgrade(stakeTotal, target, luckBonus);
   const busy = run !== null;
 

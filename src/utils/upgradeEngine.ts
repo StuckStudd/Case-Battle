@@ -23,13 +23,19 @@ export function prestigeBonus(prestige: number): number {
   return Math.min(PRESTIGE_CHANCE_MAX, Math.max(0, prestige) * PRESTIGE_CHANCE_STEP);
 }
 
-/** Relative chance bonus: the loss-streak luck bonus plus the prestige bonus. */
-export function getLuckBonus(luck: LuckState, stakeValue: number, prestige = 0): number {
+/**
+ * Relative chance bonus: the loss-streak luck bonus plus the prestige bonus,
+ * multiplied by the admin luck multiplier (x2 doubles the chance).
+ */
+export function getLuckBonus(luck: LuckState, stakeValue: number, prestige = 0, adminLuck = 1): number {
   const base = prestigeBonus(prestige);
-  if (luck.lossStreak < LUCK_START_STREAK || stakeValue <= 0) return base;
-  const streakBonus = Math.min(LUCK_MAX_BONUS, LUCK_STEP * (luck.lossStreak - LUCK_START_STREAK + 1));
-  const scale = Math.min(1, luck.lostValue / stakeValue);
-  return Math.round((streakBonus * scale + base) * 10000) / 10000;
+  let bonus = base;
+  if (luck.lossStreak >= LUCK_START_STREAK && stakeValue > 0) {
+    const streakBonus = Math.min(LUCK_MAX_BONUS, LUCK_STEP * (luck.lossStreak - LUCK_START_STREAK + 1));
+    const scale = Math.min(1, luck.lostValue / stakeValue);
+    bonus = streakBonus * scale + base;
+  }
+  return Math.round(((1 + bonus) * Math.max(1, adminLuck) - 1) * 10000) / 10000;
 }
 
 /** Final chance in percent (with the optional luck bonus), clamped and rounded to 2 decimals. */

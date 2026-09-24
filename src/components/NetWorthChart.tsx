@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import type { PointerEvent } from 'react';
 import { useT } from '../i18n';
 import type { NetWorthPoint } from '../types/types';
-import { formatDateTime, formatMoney } from '../utils/format';
+import { formatCompactMoney, formatDateTime, formatMoney } from '../utils/format';
 
 const W = 640;
 const H = 220;
@@ -20,9 +20,18 @@ function niceTicks(min: number, max: number, count = 4): number[] {
   return ticks;
 }
 
-/** Single-series net worth over time with a crosshair tooltip and a table fallback. */
-export function NetWorthChart({ points }: { points: NetWorthPoint[] }) {
+interface NetWorthChartProps {
+  points: NetWorthPoint[];
+  /** Accessible chart name; defaults to the net worth label. */
+  label?: string;
+  /** Table column header for the values; defaults to "Net worth". */
+  valueHeader?: string;
+}
+
+/** Single-series value over time (net worth, skin price) with a crosshair tooltip and a table fallback. */
+export function NetWorthChart({ points, label, valueHeader }: NetWorthChartProps) {
   const t = useT();
+  const fillId = `fill${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
@@ -62,12 +71,12 @@ export function NetWorthChart({ points }: { points: NetWorthPoint[] }) {
           viewBox={`0 0 ${W} ${H}`}
           className="w-full touch-none"
           role="img"
-          aria-label={t('profile.chartLabel', { value: formatMoney(last.v) })}
+          aria-label={label ?? t('profile.chartLabel', { value: formatMoney(last.v) })}
           onPointerMove={onMove}
           onPointerLeave={() => setHover(null)}
         >
           <defs>
-            <linearGradient id="nw-fill" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0" stopColor={LINE} stopOpacity="0.28" />
               <stop offset="1" stopColor={LINE} stopOpacity="0" />
             </linearGradient>
@@ -76,11 +85,11 @@ export function NetWorthChart({ points }: { points: NetWorthPoint[] }) {
             <g key={v}>
               <line x1={PAD.left} x2={W - PAD.right} y1={geometry.y(v)} y2={geometry.y(v)} stroke="rgba(255,255,255,0.06)" />
               <text x={PAD.left - 8} y={geometry.y(v) + 4} textAnchor="end" fontSize="11" fill="#94a3b8">
-                {formatMoney(v)}
+                {formatCompactMoney(v)}
               </text>
             </g>
           ))}
-          <path d={geometry.area} fill="url(#nw-fill)" />
+          <path d={geometry.area} fill={`url(#${fillId})`} />
           <path d={geometry.line} fill="none" stroke={LINE} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
           {hovered && hover !== null && (
             <g>
@@ -108,7 +117,7 @@ export function NetWorthChart({ points }: { points: NetWorthPoint[] }) {
             <thead className="sticky top-0 bg-[#1d1e22] text-slate-400">
               <tr>
                 <th className="px-3 py-1.5 font-semibold">{t('profile.time')}</th>
-                <th className="px-3 py-1.5 text-right font-semibold">{t('profile.netWorth')}</th>
+                <th className="px-3 py-1.5 text-right font-semibold">{valueHeader ?? t('profile.netWorth')}</th>
               </tr>
             </thead>
             <tbody>

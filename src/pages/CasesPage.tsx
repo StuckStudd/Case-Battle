@@ -1,9 +1,10 @@
-import { Box, KeyRound, Lock, Sticker, Swords } from 'lucide-react';
-import { useState } from 'react';
+import { Box, KeyRound, Lock, Search, Sticker, Swords } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { BattleArena } from '../components/BattleArena';
 import { CapsuleModal } from '../components/CapsuleModal';
 import { CaseOpenModal } from '../components/CaseOpenModal';
 import { PageHeader } from '../components/common';
+import { Pagination, usePagination } from '../components/Pagination';
 import { CAPSULES } from '../data/capsules';
 import type { CapsuleDef } from '../data/capsules';
 import { CASES } from '../data/cases';
@@ -58,6 +59,65 @@ function BoxCard({ name, image, price, keys, lockedLevel, highRoller, onClick }:
   );
 }
 
+const SECTION_PAGE_SIZE: Record<CaseDef['kind'], number> = { premium: 100, official: 100, souvenir: 20 };
+
+/** One group of cases; the long souvenir package list gets search and pages. */
+function CaseSection({ kind, level, keys, onSelect }: { kind: CaseDef['kind']; level: number; keys: Record<string, number>; onSelect: (def: CaseDef) => void }) {
+  const t = useT();
+  const [query, setQuery] = useState('');
+  const all = useMemo(() => CASES.filter((def) => def.kind === kind), [kind]);
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return q ? all.filter((def) => def.name.toLowerCase().includes(q)) : all;
+  }, [all, query]);
+  const { page, pageCount, pageItems, setPage } = usePagination(visible, SECTION_PAGE_SIZE[kind]);
+  const searchable = all.length > SECTION_PAGE_SIZE[kind];
+
+  return (
+    <section>
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-display text-xl font-bold text-white">
+            {t(`cases.${kind}`)} <span className="text-sm font-semibold text-slate-500">{all.length}</span>
+          </h2>
+          <p className="text-sm text-slate-400">{t(`cases.${kind}Hint`)}</p>
+        </div>
+        {searchable && (
+          <label className="relative w-full sm:w-64">
+            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setPage(0);
+              }}
+              placeholder={t('cases.searchSouvenir')}
+              aria-label={t('cases.searchSouvenir')}
+              className="input h-10 pl-9"
+            />
+          </label>
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
+        {pageItems.map((def) => (
+          <BoxCard
+            key={def.id}
+            name={def.name}
+            image={def.image}
+            price={def.price}
+            keys={keys[def.id] ?? 0}
+            lockedLevel={level < def.minLevel ? def.minLevel : null}
+            highRoller={def.price >= 10_000}
+            onClick={() => onSelect(def)}
+          />
+        ))}
+      </div>
+      {pageCount > 1 && <Pagination page={page} pageCount={pageCount} onChange={setPage} />}
+    </section>
+  );
+}
+
 export function CasesPage({ onUpgradeItem }: { onUpgradeItem: (uid: string) => void }) {
   const t = useT();
   const { state } = useStore();
@@ -85,25 +145,8 @@ export function CasesPage({ onUpgradeItem }: { onUpgradeItem: (uid: string) => v
 
       {tab === 'cases' && (
         <div className="space-y-8">
-          {(['premium', 'official'] as const).map((kind) => (
-            <section key={kind}>
-              <h2 className="font-display text-xl font-bold text-white">{t(kind === 'premium' ? 'cases.premium' : 'cases.official')}</h2>
-              <p className="mb-4 text-sm text-slate-400">{t(kind === 'premium' ? 'cases.premiumHint' : 'cases.officialHint')}</p>
-              <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-5">
-                {CASES.filter((def) => def.kind === kind).map((def) => (
-                  <BoxCard
-                    key={def.id}
-                    name={def.name}
-                    image={def.image}
-                    price={def.price}
-                    keys={state.keys[def.id] ?? 0}
-                    lockedLevel={level < def.minLevel ? def.minLevel : null}
-                    highRoller={def.price >= 10_000}
-                    onClick={() => setSelectedCase(def)}
-                  />
-                ))}
-              </div>
-            </section>
+          {(['premium', 'official', 'souvenir'] as const).map((kind) => (
+            <CaseSection key={kind} kind={kind} level={level} keys={state.keys} onSelect={setSelectedCase} />
           ))}
         </div>
       )}

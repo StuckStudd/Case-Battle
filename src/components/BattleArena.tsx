@@ -106,8 +106,8 @@ export function BattleArena() {
           <label className="text-xs text-slate-400">
             {t('battle.case')}
             <select className="input mt-1" value={caseId} onChange={(e) => setCaseId(e.target.value)} disabled={!!run && !done}>
-              {(['premium', 'official'] as const).map((kind) => (
-                <optgroup key={kind} label={t(kind === 'premium' ? 'cases.premium' : 'cases.official')}>
+              {(['premium', 'official', 'souvenir'] as const).map((kind) => (
+                <optgroup key={kind} label={t(`cases.${kind}`)}>
                   {CASES.filter((c) => c.kind === kind).map((c) => (
                     <option key={c.id} value={c.id} disabled={level < c.minLevel}>
                       {c.name} — {formatMoney(c.price)}

@@ -9,8 +9,11 @@ const STEAM_CDN = 'https://community.akamai.steamstatic.com/economy/image/';
 export interface CaseDef {
   id: string;
   name: string;
-  /** 'official': real CS2 case with its real contents and odds. 'premium': simulator case drawing from a price band. */
-  kind: 'premium' | 'official';
+  /**
+   * 'official': real CS2 case with its real contents and odds. 'souvenir': a major's souvenir package.
+   * 'premium': simulator case drawing from a price band.
+   */
+  kind: 'premium' | 'official' | 'souvenir';
   price: number;
   image: string;
   /** Player level required to open. */
@@ -155,14 +158,10 @@ const PREMIUM_CASES: CaseDef[] = [
   },
 ];
 
-/** Real CS2 drop odds per rarity; ★ items are the 0.26% "rare special item". */
-const OFFICIAL_ODDS: [Rarity, number][] = [
-  ['milspec', 0.7992],
-  ['restricted', 0.1598],
-  ['classified', 0.032],
-  ['covert', 0.0064],
-  ['rare', 0.0026],
-];
+/** Real CS2 grade ladder: each grade is about 5× rarer than the one below. ★ items are a fixed 0.26%. */
+const LADDER = [0.7992, 0.1598, 0.032, 0.0064, 0.0013, 0.0003];
+const RARE_ODDS = 0.0026;
+const GRADES: Rarity[] = ['consumer', 'industrial', 'milspec', 'restricted', 'classified', 'covert', 'contraband'];
 const WEAR_RANGES: Record<Exterior, [number, number]> = {
   'Factory New': [0, 0.07],
   'Minimal Wear': [0.07, 0.15],
@@ -173,17 +172,27 @@ const WEAR_RANGES: Record<Exterior, [number, number]> = {
 const STATTRAK_SHARE = 0.1;
 
 /**
- * Drop table of an official case: rarity by real odds, skin uniformly within its rarity,
- * wear by how much of the skin's float range falls in each wear, StatTrak 10% of the time.
+ * Drop table of an official case or souvenir package: grade by the real ladder (starting at the lowest grade
+ * inside), skin uniformly within its grade, wear by how much of the skin's float range falls in each wear.
+ * Cases give StatTrak™ 10% of the time; souvenir packages always give the Souvenir version when it exists.
  */
-function officialTable(contents: { skins: string[]; rare: string[] }): DropTable<Skin> {
+function officialTable(contents: { skins: string[]; rare: string[] }, souvenir: boolean): DropTable<Skin> {
   const groups = new Map<Rarity, string[]>();
+  // A souvenir package only drops skins that exist as Souvenir (when it has any).
+  const hasSouvenir = (id: string) => getVariants(id).some((v) => v.souvenir);
+  const onlySouvenirs = souvenir && contents.skins.some(hasSouvenir);
   for (const id of contents.skins) {
+    if (onlySouvenirs && !hasSouvenir(id)) continue;
     const rarity = getSkin(id)?.rarity;
     if (rarity) groups.set(rarity, [...(groups.get(rarity) ?? []), id]);
   }
-  groups.set('rare', contents.rare.filter((id) => getSkin(id)));
-  const present = OFFICIAL_ODDS.filter(([rarity]) => (groups.get(rarity)?.length ?? 0) > 0);
+  const grades = GRADES.filter((g) => groups.has(g));
+  const present: [Rarity, number][] = grades.map((g, i) => [g, LADDER[Math.min(i, LADDER.length - 1)]]);
+  const rare = contents.rare.filter((id) => getSkin(id));
+  if (rare.length > 0) {
+    groups.set('rare', rare);
+    present.push(['rare', RARE_ODDS]);
+  }
   const oddsTotal = present.reduce((sum, [, w]) => sum + w, 0);
 
   const entries: DropEntry<Skin>[] = [];
@@ -191,8 +200,10 @@ function officialTable(contents: { skins: string[]; rare: string[] }): DropTable
     const bases = groups.get(rarity)!;
     for (const baseId of bases) {
       const [min, max] = getFloatRange(baseId);
-      const variants = getVariants(baseId);
-      const hasStatTrak = variants.some((v) => v.statTrak);
+      const all = getVariants(baseId);
+      const souvenirs = all.filter((v) => v.souvenir);
+      const variants = souvenir && souvenirs.length > 0 ? souvenirs : all.filter((v) => !v.souvenir && (!souvenir || !v.statTrak));
+      const hasStatTrak = !souvenir && variants.some((v) => v.statTrak);
       for (const skin of variants) {
         const [lo, hi] = WEAR_RANGES[skin.exterior];
         const share = Math.max(0, Math.min(hi, max) - Math.max(lo, min)) / Math.max(1e-6, max - min);
@@ -211,13 +222,13 @@ function officialTable(contents: { skins: string[]; rare: string[] }): DropTable
 const tables = new Map<string, DropTable<Skin>>();
 
 /** Official cases are priced so that, like every case here, they return 90% on average. */
-const OFFICIAL: CaseDef[] = OFFICIAL_CASES.map(([id, name, image, released, skins, rare]) => {
-  const table = officialTable({ skins, rare });
+const OFFICIAL: CaseDef[] = OFFICIAL_CASES.map(([id, name, image, released, skins, rare, kind]) => {
+  const table = officialTable({ skins, rare }, kind === 'souvenir');
   tables.set(id, table);
   return {
     id,
     name,
-    kind: 'official' as const,
+    kind: kind === 'souvenir' ? ('souvenir' as const) : ('official' as const),
     price: Math.max(0.5, Math.round((table.expectedValue / RETURN_RATE) * 100) / 100),
     image: `${STEAM_CDN}${image}`,
     minLevel: 1,

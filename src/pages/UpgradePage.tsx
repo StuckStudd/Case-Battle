@@ -78,7 +78,7 @@ export function UpgradePage({ selection, onSelectionChange, onNavigate, onOpenFr
   const stakeTotal = getStakeValue({ values: stakeItems.map((s) => s.value), balance: stakeBalance });
   const target = run?.target ?? selectedTarget;
   // The shown chance must match the roll, so it uses the same luck bonus the store will apply.
-  const luckBonus = run ? run.outcome.luckBonus : getLuckBonus(state.luck, stakeTotal);
+  const luckBonus = run ? run.outcome.luckBonus : getLuckBonus(state.luck, stakeTotal, state.prestige);
   const validation = validateUpgrade(stakeTotal, target, luckBonus);
   const busy = run !== null;
 

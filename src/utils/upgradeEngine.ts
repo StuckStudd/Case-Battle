@@ -15,11 +15,21 @@ export function rawChance(stakeValue: number, targetPrice: number): number {
  * Relative chance bonus after a losing streak. It is scaled by how much was lost in the streak
  * compared to the current stake, so losing cheap skins cannot boost an expensive upgrade.
  */
-export function getLuckBonus(luck: LuckState, stakeValue: number): number {
-  if (luck.lossStreak < LUCK_START_STREAK || stakeValue <= 0) return 0;
+/** Permanent upgrade chance bonus per prestige level, capped so upgrades stay below break-even. */
+export const PRESTIGE_CHANCE_STEP = 0.01;
+export const PRESTIGE_CHANCE_MAX = 0.04;
+
+export function prestigeBonus(prestige: number): number {
+  return Math.min(PRESTIGE_CHANCE_MAX, Math.max(0, prestige) * PRESTIGE_CHANCE_STEP);
+}
+
+/** Relative chance bonus: the loss-streak luck bonus plus the prestige bonus. */
+export function getLuckBonus(luck: LuckState, stakeValue: number, prestige = 0): number {
+  const base = prestigeBonus(prestige);
+  if (luck.lossStreak < LUCK_START_STREAK || stakeValue <= 0) return base;
   const streakBonus = Math.min(LUCK_MAX_BONUS, LUCK_STEP * (luck.lossStreak - LUCK_START_STREAK + 1));
   const scale = Math.min(1, luck.lostValue / stakeValue);
-  return Math.round(streakBonus * scale * 10000) / 10000;
+  return Math.round((streakBonus * scale + base) * 10000) / 10000;
 }
 
 /** Final chance in percent (with the optional luck bonus), clamped and rounded to 2 decimals. */

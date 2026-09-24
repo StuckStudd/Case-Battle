@@ -5,6 +5,7 @@ import type { Page } from '../types/types';
 import { getDailyStatus } from '../utils/progression';
 import { cx } from '../utils/ui';
 import { Balance } from './Balance';
+import { FortuneWheel } from './FortuneWheel';
 import { Logo } from './Logo';
 
 interface HeaderProps {
@@ -32,6 +33,7 @@ export function Header({ page, onNavigate, onOpenFreeCase, onOpenDaily }: Header
               <span className="hidden sm:inline">{t('freeCase.button')}</span>
             </button>
           )}
+          <FortuneWheel />
           <button
             type="button"
             onClick={onOpenDaily}

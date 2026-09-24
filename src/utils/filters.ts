@@ -2,7 +2,7 @@ import { RARITIES } from '../data/rarities';
 import type { TKey } from '../i18n';
 import type { Rarity, Skin } from '../types/types';
 
-export type QuickFilter = 'all' | 'knives' | 'rifles' | 'pistols' | 'smgs' | 'gloves' | 'classified' | 'covert' | 'rare';
+export type QuickFilter = 'all' | 'knives' | 'rifles' | 'pistols' | 'smgs' | 'gloves' | 'agents' | 'charms' | 'music' | 'classified' | 'covert' | 'rare';
 export type SortMode = 'price-asc' | 'price-desc' | 'newest' | 'rarity';
 
 export const QUICK_FILTERS: { id: QuickFilter; label: TKey }[] = [
@@ -12,6 +12,9 @@ export const QUICK_FILTERS: { id: QuickFilter; label: TKey }[] = [
   { id: 'pistols', label: 'filters.pistols' },
   { id: 'smgs', label: 'filters.smgs' },
   { id: 'gloves', label: 'filters.gloves' },
+  { id: 'agents', label: 'filters.agents' },
+  { id: 'charms', label: 'filters.charms' },
+  { id: 'music', label: 'filters.music' },
   { id: 'classified', label: 'filters.classified' },
   { id: 'covert', label: 'filters.covert' },
   { id: 'rare', label: 'filters.rare' },
@@ -58,6 +61,12 @@ export function matchesQuickFilter(skin: Skin, quick: QuickFilter): boolean {
       return skin.category === 'smg';
     case 'gloves':
       return skin.category === 'gloves';
+    case 'agents':
+      return skin.category === 'agent';
+    case 'charms':
+      return skin.category === 'charm';
+    case 'music':
+      return skin.category === 'music';
     case 'classified':
       return skin.rarity === 'classified';
     case 'covert':

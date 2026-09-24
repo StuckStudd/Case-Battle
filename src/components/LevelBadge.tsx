@@ -6,12 +6,21 @@ import { cx } from '../utils/ui';
 /** Level number with an XP progress bar. */
 export function LevelBadge({ compact }: { compact?: boolean }) {
   const t = useT();
-  const { level, current, needed, fraction } = getLevelProgress(useStore().state.xp);
+  const { state } = useStore();
+  const { level, current, needed, fraction } = getLevelProgress(state.xp);
 
   return (
     <div className={cx('flex items-center gap-2.5', compact ? '' : 'w-full')} title={t('level.xp', { current, needed })}>
-      <div className="grid size-9 shrink-0 place-items-center rounded-xl border border-amber-400/40 bg-amber-400/10 font-display text-base font-bold text-amber-300">
+      <div className="relative grid size-9 shrink-0 place-items-center rounded-xl border border-amber-400/40 bg-amber-400/10 font-display text-base font-bold text-amber-300">
         {level}
+        {state.prestige > 0 && (
+          <span
+            title={t('prestige.badge', { n: state.prestige })}
+            className="absolute -right-2 -top-2 rounded-full bg-fuchsia-500 px-1 text-[9px] font-bold leading-4 text-white shadow-[0_0_8px_rgba(255,79,216,0.8)]"
+          >
+            ★{state.prestige}
+          </span>
+        )}
       </div>
       <div className={cx('min-w-0', compact ? 'w-24' : 'flex-1')}>
         <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">

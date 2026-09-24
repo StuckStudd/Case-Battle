@@ -53,8 +53,23 @@ import {
   startCrash as startCrashTransition,
   startMines as startMinesTransition,
   toggleFavorite as toggleFavoriteTransition,
+  startTowers as startTowersTransition,
+  climbTowers as climbTowersTransition,
+  cashOutTowers as cashOutTowersTransition,
+  startHilo as startHiloTransition,
+  guessHilo as guessHiloTransition,
+  cashOutHilo as cashOutHiloTransition,
+  spinWheel as spinWheelTransition,
+  redeemPromo as redeemPromoTransition,
+  doPrestige,
+  trackGame,
 } from './transitions';
 import type {
+  GameId,
+  HiloStep,
+  PrizeResult,
+  TowersStep,
+  WheelSpin,
   BattleOutcome,
   CoinflipResult,
   JackpotOutcome,
@@ -69,6 +84,8 @@ import type {
   UpgradeResolution,
 } from './transitions';
 import type { JackpotMode } from '../utils/botEngine';
+import type { HiloGuess } from '../utils/gamesEngine';
+import type { HiloGame, TowersDifficulty, TowersGame } from '../types/types';
 
 export type ActionResult<T> = { ok: true; value: T } | { ok: false; error: ErrorCode };
 
@@ -108,6 +125,15 @@ export interface StoreValue {
   startCrash: (stake: CrashStake, autoCashout: number | null) => ActionResult<CrashRound>;
   cashOut: (multiplier: number) => ActionResult<CrashPayout>;
   endCrash: () => ActionResult<CrashPayout>;
+  startTowers: (bet: number, difficulty: TowersDifficulty) => ActionResult<TowersGame>;
+  climbTowers: (tile: number) => ActionResult<TowersStep>;
+  cashOutTowers: () => ActionResult<{ payout: number; bombs: number[][] }>;
+  startHilo: (bet: number) => ActionResult<HiloGame>;
+  guessHilo: (guess: HiloGuess) => ActionResult<HiloStep>;
+  cashOutHilo: () => ActionResult<number>;
+  spinWheel: () => ActionResult<WheelSpin>;
+  redeemPromo: (code: string) => ActionResult<PrizeResult>;
+  prestige: () => ActionResult<number>;
   refreshTrades: () => void;
   acceptTrade: (offerId: string) => ActionResult<InventoryItem[]>;
   declineTrade: (offerId: string) => void;
@@ -161,6 +187,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const update = useCallback((fn: (current: AppState) => AppState) => commit(fn(stateRef.current)), [commit]);
 
+  /** Like `run`, and records the action in the per-game statistics. `start` marks a new round. */
+  const play = useCallback(
+    <T,>(game: GameId, start: boolean, transition: (current: AppState) => Transition<T>): ActionResult<T> =>
+      run((s) => {
+        const result = transition(s);
+        return result.ok ? { ...result, state: trackGame(s, result.state, game, start) } : result;
+      }),
+    [run],
+  );
+
   useEffect(() => {
     setPersistenceAvailable(saveState(state));
   }, [state]);
@@ -171,29 +207,38 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       holdBalance: (amount: number) => setBalanceHold((h) => h + Math.max(0, amount)),
       releaseBalance: (amount: number) => setBalanceHold((h) => Math.max(0, h - Math.max(0, amount))),
       finishBattle: () => update((s) => settleBattle(s)),
-      jackpot: (uids: string[], mode?: JackpotMode) => run((s) => playJackpot(s, uids, mode)),
+      jackpot: (uids: string[], mode?: JackpotMode) => play(mode === 'duel' || mode === 'mega' ? mode : 'jackpot', true, (s) => playJackpot(s, uids, mode)),
       finishJackpot: () => update((s) => settleJackpot(s)),
       claimCollection: (collectionId: string) => run((s) => claimCollectionTransition(s, collectionId)),
       buy: (skinId: string) => run((s) => buySkin(s, skinId)),
       sell: (uid: string) => run((s) => sellItem(s, uid)),
-      startUpgrade: (request: UpgradeRequest) => run((s) => beginUpgrade(s, request)),
-      resolveUpgrade: () => run((s) => finishUpgrade(s)),
+      startUpgrade: (request: UpgradeRequest) => play('upgrade', true, (s) => beginUpgrade(s, request)),
+      resolveUpgrade: () => play('upgrade', false, (s) => finishUpgrade(s)),
       openCase: () => run((s) => openFreeCase(s)),
-      openShopCase: (caseId: string) => run((s) => openPaidCase(s, caseId)),
-      openCapsule: (capsuleId: string) => run((s) => openCapsuleTransition(s, capsuleId)),
+      openShopCase: (caseId: string) => play('cases', true, (s) => openPaidCase(s, caseId)),
+      openCapsule: (capsuleId: string) => play('capsules', true, (s) => openCapsuleTransition(s, capsuleId)),
       applySticker: (itemUid: string, stickerUid: string) => run((s) => applyStickerTransition(s, itemUid, stickerUid)),
       sellSticker: (stickerUid: string) => run((s) => sellStickerTransition(s, stickerUid)),
-      battle: (caseId: string, bots: number, rounds: number) => run((s) => playBattle(s, caseId, bots, rounds)),
-      tradeUp: (uids: string[]) => run((s) => signContract(s, uids)),
-      coinflip: (bet: number, side: CoinSide) => run((s) => playCoinflip(s, bet, side)),
-      roulette: (bet: number, color: RouletteColor) => run((s) => playRoulette(s, bet, color)),
-      plinko: (bet: number, risk: PlinkoRisk) => run((s) => playPlinko(s, bet, risk)),
-      startMines: (bet: number, mines: number) => run((s) => startMinesTransition(s, bet, mines)),
-      revealMine: (cell: number) => run((s) => revealMineTransition(s, cell)),
-      cashOutMines: () => run((s) => cashOutMinesTransition(s)),
-      startCrash: (stake: CrashStake, autoCashout: number | null) => run((s) => startCrashTransition(s, stake, autoCashout)),
-      cashOut: (multiplier: number) => run((s) => cashOutCrash(s, multiplier)),
-      endCrash: () => run((s) => settleCrash(s)),
+      battle: (caseId: string, bots: number, rounds: number) => play('battles', true, (s) => playBattle(s, caseId, bots, rounds)),
+      tradeUp: (uids: string[]) => play('contracts', true, (s) => signContract(s, uids)),
+      coinflip: (bet: number, side: CoinSide) => play('coinflip', true, (s) => playCoinflip(s, bet, side)),
+      roulette: (bet: number, color: RouletteColor) => play('roulette', true, (s) => playRoulette(s, bet, color)),
+      plinko: (bet: number, risk: PlinkoRisk) => play('plinko', true, (s) => playPlinko(s, bet, risk)),
+      startMines: (bet: number, mines: number) => play('mines', true, (s) => startMinesTransition(s, bet, mines)),
+      revealMine: (cell: number) => play('mines', false, (s) => revealMineTransition(s, cell)),
+      cashOutMines: () => play('mines', false, (s) => cashOutMinesTransition(s)),
+      startCrash: (stake: CrashStake, autoCashout: number | null) => play('crash', true, (s) => startCrashTransition(s, stake, autoCashout)),
+      cashOut: (multiplier: number) => play('crash', false, (s) => cashOutCrash(s, multiplier)),
+      endCrash: () => play('crash', false, (s) => settleCrash(s)),
+      startTowers: (bet: number, difficulty: TowersDifficulty) => play('towers', true, (s) => startTowersTransition(s, bet, difficulty)),
+      climbTowers: (tile: number) => play('towers', false, (s) => climbTowersTransition(s, tile)),
+      cashOutTowers: () => play('towers', false, (s) => cashOutTowersTransition(s)),
+      startHilo: (bet: number) => play('hilo', true, (s) => startHiloTransition(s, bet)),
+      guessHilo: (guess: HiloGuess) => play('hilo', false, (s) => guessHiloTransition(s, guess)),
+      cashOutHilo: () => play('hilo', false, (s) => cashOutHiloTransition(s)),
+      spinWheel: () => run((s) => spinWheelTransition(s)),
+      redeemPromo: (code: string) => run((s) => redeemPromoTransition(s, code)),
+      prestige: () => run((s) => doPrestige(s)),
       refreshTrades: () => update((s) => refreshTradesTransition(s)),
       acceptTrade: (offerId: string) => run((s) => acceptTradeTransition(s, offerId)),
       declineTrade: (offerId: string) => update((s) => declineTradeTransition(s, offerId)),
@@ -226,7 +271,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         return { ok: true, value: null };
       },
     }),
-    [run, update],
+    [run, update, play],
   );
 
   const value = useMemo<StoreValue>(

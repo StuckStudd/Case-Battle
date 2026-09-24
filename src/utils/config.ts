@@ -1,4 +1,4 @@
-export const STARTING_BALANCE = 100;
+export const STARTING_BALANCE = 5000;
 
 /** Fraction removed from the fair chance. 0.05 = 5% house edge. */
 export const HOUSE_EDGE = 0.05;
@@ -42,6 +42,15 @@ export const NICKNAME_MAX_LENGTH = 20;
 export const MAX_STICKERS_PER_ITEM = 4;
 export const MINES_GRID = 25;
 export const MINES_RETURN = 0.97;
+
+/** Towers: floors to climb and the expected return of every cash-out point. */
+export const TOWERS_FLOORS = 8;
+export const TOWERS_RETURN = 0.97;
+/** Hi-Lo: each correct guess pays (HILO_STEP_RETURN / chance); the game ends after HILO_MAX_STEPS guesses. */
+export const HILO_STEP_RETURN = 0.98;
+export const HILO_MAX_STEPS = 30;
+/** Free fortune wheel spin interval. */
+export const WHEEL_COOLDOWN_MS = 4 * 3_600_000;
 export const PLINKO_ROWS = 12;
 /** Battle pass: tiers per season, XP per tier, season length in days. */
 export const SEASON_TIERS = 30;

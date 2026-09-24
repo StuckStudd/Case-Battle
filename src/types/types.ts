@@ -18,7 +18,10 @@ export type WeaponCategory =
   | 'shotgun'
   | 'machinegun'
   | 'knife'
-  | 'gloves';
+  | 'gloves'
+  | 'agent'
+  | 'charm'
+  | 'music';
 
 export type Exterior =
   | 'Factory New'
@@ -45,11 +48,15 @@ export interface Skin {
   /** Primary / secondary colors used by the generated artwork. */
   colors: [string, string];
   statTrak: boolean;
-  /** Price change versus yesterday, e.g. 0.031 = +3.1%. */
+  /** Souvenir version (from souvenir packages). */
+  souvenir?: boolean;
+  /** Items without wear or float: vanilla knives, agents, charms, music kits. */
+  wearless?: boolean;
+  /** Price change versus 24 hours ago, e.g. 0.031 = +3.1%. */
   priceChange: number;
 }
 
-export type ItemOrigin = 'shop' | 'upgrade' | 'case' | 'contract' | 'battle' | 'trade' | 'crash' | 'jackpot';
+export type ItemOrigin = 'shop' | 'upgrade' | 'case' | 'contract' | 'battle' | 'trade' | 'crash' | 'jackpot' | 'wheel';
 
 /** Rare patterns and floats that multiply an item's value. */
 export type SpecialPattern = 'ruby' | 'sapphire' | 'blackPearl' | 'blueGem' | 'fullFade' | 'lowFloat';
@@ -94,6 +101,35 @@ export interface SeasonState {
   id: number;
   startXp: number;
   claimed: number[];
+}
+
+export type TowersDifficulty = 'easy' | 'medium' | 'hard' | 'expert';
+
+export interface TowersGame {
+  id: string;
+  bet: number;
+  difficulty: TowersDifficulty;
+  /** Bomb tile indices per floor, decided when the game starts. */
+  bombs: number[][];
+  /** Tile picked on each cleared floor. */
+  picks: number[];
+}
+
+export interface HiloGame {
+  id: string;
+  bet: number;
+  /** The whole deck is drawn when the game starts; cards[index] is face up. Values 1 (A) … 13 (K). */
+  cards: number[];
+  index: number;
+  multiplier: number;
+}
+
+/** Per-game totals shown in the profile. */
+export interface GameStat {
+  played: number;
+  wagered: number;
+  /** Net result of the game: returns minus stakes. */
+  profit: number;
 }
 
 export interface MinesGame {
@@ -251,6 +287,15 @@ export interface AppState {
   onboardingComplete: boolean;
   /** An upgrade whose result is already decided but not yet revealed/applied. */
   pendingUpgrade: UpgradeOutcome | null;
+  pendingTowers: TowersGame | null;
+  pendingHilo: HiloGame | null;
+  /** Times the player has prestiged (reset for permanent bonuses). */
+  prestige: number;
+  /** Timestamp of the last free fortune wheel spin (0 = never). */
+  wheelLastSpin: number;
+  promoClaimed: string[];
+  /** Game id -> totals. */
+  gameStats: Record<string, GameStat>;
 }
 
 /** Translatable failure reasons returned by store actions (see i18n "error.*"). */
@@ -296,7 +341,18 @@ export type ErrorCode =
   | 'battleInvalid'
   | 'collectionIncomplete'
   | 'collectionClaimed'
-  | 'jackpotEmpty';
+  | 'jackpotEmpty'
+  | 'towersInProgress'
+  | 'noTowers'
+  | 'invalidTowers'
+  | 'hiloInProgress'
+  | 'noHilo'
+  | 'invalidHilo'
+  | 'wheelCooldown'
+  | 'promoInvalid'
+  | 'promoUsed'
+  | 'prestigeLocked'
+  | 'prestigeBusy';
 
 export type Page =
   | 'upgrade'

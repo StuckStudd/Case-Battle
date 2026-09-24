@@ -6,7 +6,7 @@ import { useT } from '../i18n';
 import type { TKey } from '../i18n';
 import type { InventoryItem, Skin } from '../types/types';
 import { itemValue } from '../utils/itemValue';
-import { exteriorShort } from '../utils/exterior';
+import { wearTag } from '../utils/exterior';
 import { formatMoney } from '../utils/format';
 import { cx, rarityStyle } from '../utils/ui';
 import { SkinImage } from './SkinImage';
@@ -71,10 +71,11 @@ export function SkinCard({
       className={cx('rarity-card group flex flex-col overflow-hidden', compact ? 'p-2.5' : 'p-3', className)}
     >
       <div className="flex items-start justify-between gap-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
-        <span className="rounded-md bg-white/5 px-1.5 py-0.5" title={`${skin.exterior} · float ${float.toFixed(5)}`}>
+        <span className="rounded-md bg-white/5 px-1.5 py-0.5" title={skin.wearless ? skin.name : `${skin.exterior} · float ${float.toFixed(5)}`}>
           {skin.statTrak && <span className="mr-1 text-orange-400">ST</span>}
-          {exteriorShort(skin.exterior)}
-          {!compact && <> · {float.toFixed(float < 0.01 ? 4 : 3)}</>}
+          {skin.souvenir && <span className="mr-1 text-yellow-300">SV</span>}
+          {wearTag(skin)}
+          {!compact && !skin.wearless && <> · {float.toFixed(float < 0.01 ? 4 : 3)}</>}
         </span>
         <div className="flex items-center gap-1">
           {badge}

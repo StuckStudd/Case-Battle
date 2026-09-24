@@ -1,4 +1,4 @@
-import { SKINS } from '../data/skinData';
+import { SKINS, isWeaponSkin } from '../data/skinData';
 import type { Rarity, Skin } from '../types/types';
 import { buildDropTable } from './dropTable';
 import type { DropTable } from './dropTable';
@@ -31,8 +31,10 @@ export function checkContract(inputs: readonly Skin[]): ContractCheck {
   const inputValue = inputs.reduce((sum, s) => sum + s.price, 0);
   const target = inputValue * CONTRACT_RETURN;
   // Keep outcomes within a sensible band around the stake so results feel like a trade-up.
-  let pool = SKINS.filter((s) => s.rarity === step.next && s.price >= target * 0.2 && s.price <= target * 8);
-  if (pool.length < 3) pool = SKINS.filter((s) => s.rarity === step.next);
+  // Like in the game, contracts only produce regular weapon skins (no souvenirs, agents, charms or music kits).
+  const outcomes = SKINS.filter((s) => s.rarity === step.next && !s.souvenir && isWeaponSkin(s));
+  let pool = outcomes.filter((s) => s.price >= target * 0.2 && s.price <= target * 8);
+  if (pool.length < 3) pool = outcomes;
   if (pool.length === 0) return { ok: false, reason: 'contractNoOutcomes' };
   return { ok: true, table: buildDropTable(pool, target), inputValue, next: step.next };
 }

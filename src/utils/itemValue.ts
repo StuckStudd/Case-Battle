@@ -30,7 +30,7 @@ export function hasExtras(item: InventoryItem): boolean {
 /** Rolls a rare pattern for a skin obtained by luck. Most drops get none. */
 export function rollSpecial(skin: Skin): { special?: SpecialPattern; float?: number } {
   // Legendary items already are the rare pattern.
-  if (skin.rarity === 'legendary') return {};
+  if (skin.rarity === 'legendary' || skin.wearless) return {};
   const r = secureRandom();
   if (skin.finish === 'Doppler') {
     if (r < 0.015) return { special: 'ruby' };

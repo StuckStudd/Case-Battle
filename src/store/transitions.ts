@@ -4,12 +4,15 @@ import { COLLECTIONS, ownedBases } from '../data/collections';
 import { dailyQuests, weekOf, weeklyQuests } from '../data/quests';
 import { FRAMES, seasonReward } from '../data/season';
 import type { SeasonReward } from '../data/season';
-import { getSkin, isValidSkin } from '../data/skinData';
+import { PROMO_CODES, WHEEL_SEGMENTS, prestigeFrame, prestigeRequirement, prestigeStartBalance } from '../data/extras';
+import type { Prize, WheelSegment } from '../data/extras';
+import { SKINS, getSkin, isValidSkin, isWeaponSkin } from '../data/skinData';
 import { getSticker } from '../data/stickers';
 import type {
   AppState,
   CrashRound,
   ErrorCode,
+  HiloGame,
   HistoryEntry,
   InventoryItem,
   ItemOrigin,
@@ -17,6 +20,8 @@ import type {
   MinesGame,
   Skin,
   StickerItem,
+  TowersDifficulty,
+  TowersGame,
   UpgradeOutcome,
   UserStats,
 } from '../types/types';
@@ -25,6 +30,7 @@ import type { BattleResult, JackpotMode, JackpotResult } from '../utils/botEngin
 import { rollFreeCase } from '../utils/caseEngine';
 import {
   FREE_CASE_BALANCE_THRESHOLD,
+  HILO_MAX_STEPS,
   HISTORY_LIMIT,
   MAX_STICKERS_PER_ITEM,
   MINES_GRID,
@@ -35,6 +41,8 @@ import {
   SELL_RATE,
   STARTING_BALANCE,
   STORAGE_VERSION,
+  TOWERS_FLOORS,
+  WHEEL_COOLDOWN_MS,
 } from '../utils/config';
 import { checkContract } from '../utils/contractEngine';
 import { rollDrop } from '../utils/dropTable';
@@ -52,7 +60,10 @@ import {
   placeMines,
   spinRoulette,
 } from '../utils/gamesEngine';
-import type { CoinSide, PlinkoRisk, RouletteColor } from '../utils/gamesEngine';
+import type { CoinSide, HiloGuess, PlinkoRisk, RouletteColor } from '../utils/gamesEngine';
+import { drawHiloCards, hiloChance, hiloStep, placeTowerBombs, towersMultiplier, TOWERS_LAYOUT } from '../utils/gamesEngine';
+import { getNetWorth } from '../utils/progression';
+import { pickRandom, secureRandom } from '../utils/random';
 import { itemValue, rollSpecial } from '../utils/itemValue';
 import { currentDay, getDailyStatus, isRareDrop, levelFromXp, xpForWager } from '../utils/progression';
 import { createId } from '../utils/random';
@@ -135,6 +146,12 @@ export function createInitialState(now = Date.now()): AppState {
     isFirstVisit: true,
     onboardingComplete: false,
     pendingUpgrade: null,
+    pendingTowers: null,
+    pendingHilo: null,
+    prestige: 0,
+    wheelLastSpin: 0,
+    promoClaimed: [],
+    gameStats: {},
   };
 }
 
@@ -189,7 +206,7 @@ function validBet(state: AppState, bet: number): ErrorCode | null {
 }
 
 function busy(state: AppState): boolean {
-  return !!state.pendingUpgrade || !!state.pendingCrash || !!state.pendingMines;
+  return !!state.pendingUpgrade || !!state.pendingCrash || !!state.pendingMines || !!state.pendingTowers || !!state.pendingHilo;
 }
 
 // ---------------------------------------------------------------- shop
@@ -257,7 +274,7 @@ export function beginUpgrade(state: AppState, request: UpgradeRequest): Transiti
       stakeValue,
       balanceUsed,
       target,
-      luckBonus: getLuckBonus(state.luck, stakeValue),
+      luckBonus: getLuckBonus(state.luck, stakeValue, state.prestige),
     });
   } catch (error) {
     return fail(error instanceof UpgradeError ? error.code : 'targetInvalid');
@@ -858,4 +875,224 @@ export function toggleFavorite(state: AppState, skinId: string): AppState {
     ? state.favorites.filter((id) => id !== skinId)
     : [...state.favorites, skinId];
   return { ...state, favorites };
+}
+
+// ---------------------------------------------------------------- towers
+
+export function startTowers(state: AppState, bet: number, difficulty: TowersDifficulty): Transition<TowersGame> {
+  if (state.pendingTowers) return fail('towersInProgress');
+  if (!(difficulty in TOWERS_LAYOUT)) return fail('invalidTowers');
+  const amount = roundMoney(bet);
+  const error = validBet(state, amount);
+  if (error) return fail(error);
+  const game: TowersGame = { id: createId('towers'), bet: amount, difficulty, bombs: placeTowerBombs(difficulty), picks: [] };
+  return { ok: true, value: game, state: { ...withWager(state, amount), balance: roundMoney(state.balance - amount), pendingTowers: game } };
+}
+
+export interface TowersStep {
+  hit: boolean;
+  multiplier: number;
+  payout: number;
+  /** Every floor's bombs, revealed only when the game ends. */
+  bombs: number[][] | null;
+}
+
+export function climbTowers(state: AppState, tile: number): Transition<TowersStep> {
+  const game = state.pendingTowers;
+  if (!game) return fail('noTowers');
+  const floor = game.picks.length;
+  if (!Number.isInteger(tile) || tile < 0 || tile >= TOWERS_LAYOUT[game.difficulty].tiles) return fail('invalidTowers');
+  if (game.bombs[floor].includes(tile)) {
+    return { ok: true, value: { hit: true, multiplier: 0, payout: 0, bombs: game.bombs }, state: { ...state, pendingTowers: null } };
+  }
+  const picks = [...game.picks, tile];
+  const multiplier = towersMultiplier(game.difficulty, picks.length);
+  // Reaching the top cashes out automatically.
+  if (picks.length === TOWERS_FLOORS) {
+    const payout = roundMoney(game.bet * multiplier);
+    return { ok: true, value: { hit: false, multiplier, payout, bombs: game.bombs }, state: { ...state, pendingTowers: null, balance: roundMoney(state.balance + payout) } };
+  }
+  return { ok: true, value: { hit: false, multiplier, payout: 0, bombs: null }, state: { ...state, pendingTowers: { ...game, picks } } };
+}
+
+export function cashOutTowers(state: AppState): Transition<{ payout: number; bombs: number[][] }> {
+  const game = state.pendingTowers;
+  if (!game || game.picks.length === 0) return fail('noTowers');
+  const payout = roundMoney(game.bet * towersMultiplier(game.difficulty, game.picks.length));
+  return { ok: true, value: { payout, bombs: game.bombs }, state: { ...state, pendingTowers: null, balance: roundMoney(state.balance + payout) } };
+}
+
+// ---------------------------------------------------------------- hi-lo
+
+export function startHilo(state: AppState, bet: number): Transition<HiloGame> {
+  if (state.pendingHilo) return fail('hiloInProgress');
+  const amount = roundMoney(bet);
+  const error = validBet(state, amount);
+  if (error) return fail(error);
+  const game: HiloGame = { id: createId('hilo'), bet: amount, cards: drawHiloCards(), index: 0, multiplier: 1 };
+  return { ok: true, value: game, state: { ...withWager(state, amount), balance: roundMoney(state.balance - amount), pendingHilo: game } };
+}
+
+export interface HiloStep {
+  win: boolean;
+  card: number;
+  multiplier: number;
+  payout: number;
+}
+
+export function guessHilo(state: AppState, guess: HiloGuess): Transition<HiloStep> {
+  const game = state.pendingHilo;
+  if (!game) return fail('noHilo');
+  const current = game.cards[game.index];
+  if ((guess !== 'higher' && guess !== 'lower') || hiloChance(current, guess) >= 1) return fail('invalidHilo');
+  const next = game.cards[game.index + 1];
+  const win = guess === 'higher' ? next >= current : next <= current;
+  if (!win) return { ok: true, value: { win: false, card: next, multiplier: 0, payout: 0 }, state: { ...state, pendingHilo: null } };
+  const multiplier = Math.floor(game.multiplier * hiloStep(current, guess) * 100) / 100;
+  const index = game.index + 1;
+  // The deck is finite: the last guess cashes out automatically.
+  if (index >= HILO_MAX_STEPS) {
+    const payout = roundMoney(game.bet * multiplier);
+    return { ok: true, value: { win: true, card: next, multiplier, payout }, state: { ...state, pendingHilo: null, balance: roundMoney(state.balance + payout) } };
+  }
+  return { ok: true, value: { win: true, card: next, multiplier, payout: 0 }, state: { ...state, pendingHilo: { ...game, index, multiplier } } };
+}
+
+export function cashOutHilo(state: AppState): Transition<number> {
+  const game = state.pendingHilo;
+  if (!game || game.index === 0) return fail('noHilo');
+  const payout = roundMoney(game.bet * game.multiplier);
+  return { ok: true, value: payout, state: { ...state, pendingHilo: null, balance: roundMoney(state.balance + payout) } };
+}
+
+// ---------------------------------------------------------------- prizes: fortune wheel and promo codes
+
+export interface PrizeResult {
+  prize: Prize;
+  /** Item given by skin / legend prizes. */
+  item?: InventoryItem;
+}
+
+function grantPrize(state: AppState, prize: Prize, now: number): { state: AppState; result: PrizeResult } {
+  switch (prize.kind) {
+    case 'money':
+      return { state: { ...state, balance: roundMoney(state.balance + prize.amount) }, result: { prize } };
+    case 'key':
+      return { state: { ...state, keys: { ...state.keys, [prize.id]: (state.keys[prize.id] ?? 0) + prize.count } }, result: { prize } };
+    case 'skin':
+    case 'legend': {
+      const pool =
+        prize.kind === 'legend'
+          ? SKINS.filter((s) => s.rarity === 'legendary' && !s.collection.includes('Prototype'))
+          : SKINS.filter((s) => s.price >= prize.min && s.price <= prize.max && !s.souvenir && isWeaponSkin(s) && (!prize.category || s.category === prize.category));
+      const item = luckyItem(pickRandom(pool), 'wheel', now);
+      return { state: addItems(state, [item]), result: { prize, item } };
+    }
+  }
+}
+
+export function wheelReadyAt(state: AppState): number {
+  return state.wheelLastSpin + WHEEL_COOLDOWN_MS;
+}
+
+export interface WheelSpin extends PrizeResult {
+  segment: WheelSegment;
+  index: number;
+}
+
+/** Free spin: the segment is drawn here, the wheel animation only shows it. */
+export function spinWheel(state: AppState, now = Date.now()): Transition<WheelSpin> {
+  if (now < wheelReadyAt(state)) return fail('wheelCooldown');
+  const total = WHEEL_SEGMENTS.reduce((sum, s) => sum + s.weight, 0);
+  let roll = secureRandom() * total;
+  let index = WHEEL_SEGMENTS.findIndex((s) => (roll -= s.weight) < 0);
+  if (index < 0) index = WHEEL_SEGMENTS.length - 1;
+  const segment = WHEEL_SEGMENTS[index];
+  const granted = grantPrize({ ...state, wheelLastSpin: now }, segment.prize, now);
+  return { ok: true, value: { ...granted.result, segment, index }, state: granted.state };
+}
+
+export function redeemPromo(state: AppState, code: string, now = Date.now()): Transition<PrizeResult> {
+  const key = code.trim().toUpperCase();
+  const prize = PROMO_CODES[key];
+  if (!prize) return fail('promoInvalid');
+  if (state.promoClaimed.includes(key)) return fail('promoUsed');
+  const granted = grantPrize({ ...state, promoClaimed: [...state.promoClaimed, key] }, prize, now);
+  return { ok: true, value: granted.result, state: granted.state };
+}
+
+// ---------------------------------------------------------------- prestige
+
+/**
+ * Trades everything (balance, items, stickers, keys, level) for a prestige level with permanent bonuses.
+ * Achievements, collections, history and statistics are kept.
+ */
+export function doPrestige(state: AppState, now = Date.now()): Transition<number> {
+  if (busy(state) || state.pendingBattle || state.pendingJackpot) return fail('prestigeBusy');
+  if (getNetWorth(state) < prestigeRequirement(state.prestige)) return fail('prestigeLocked');
+  const prestige = state.prestige + 1;
+  const frame = prestigeFrame(prestige);
+  return {
+    ok: true,
+    value: prestige,
+    state: {
+      ...state,
+      prestige,
+      balance: prestigeStartBalance(prestige),
+      inventory: [],
+      stickers: [],
+      keys: {},
+      tradeOffers: [],
+      showcase: [],
+      luck: { ...EMPTY_LUCK },
+      xp: 0,
+      season: { ...state.season, startXp: 0 },
+      netWorthHistory: [...state.netWorthHistory, { t: now, v: prestigeStartBalance(prestige) }],
+      frames: frame && !state.frames.includes(frame) ? [...state.frames, frame] : state.frames,
+      frame: frame ?? state.frame,
+    },
+  };
+}
+
+// ---------------------------------------------------------------- per-game statistics
+
+export type GameId =
+  | 'upgrade'
+  | 'cases'
+  | 'battles'
+  | 'contracts'
+  | 'capsules'
+  | 'crash'
+  | 'jackpot'
+  | 'duel'
+  | 'mega'
+  | 'roulette'
+  | 'mines'
+  | 'plinko'
+  | 'coinflip'
+  | 'towers'
+  | 'hilo';
+
+/** Everything the player owns, including winnings still held for an animation. */
+function wealth(state: AppState): number {
+  const held = [...(state.pendingJackpot?.items ?? []), ...(state.pendingBattle?.items ?? [])].reduce((sum, i) => sum + itemValue(i), 0);
+  return getNetWorth(state) + held;
+}
+
+/** Records one game action: `start` counts a new round; profit is the change in everything the player owns. */
+export function trackGame(prev: AppState, next: AppState, game: GameId, start: boolean): AppState {
+  const wagered = Math.max(0, next.stats.totalWagered - prev.stats.totalWagered);
+  const profit = wealth(next) - wealth(prev);
+  const current = next.gameStats[game] ?? { played: 0, wagered: 0, profit: 0 };
+  return {
+    ...next,
+    gameStats: {
+      ...next.gameStats,
+      [game]: {
+        played: current.played + (start ? 1 : 0),
+        wagered: roundMoney(current.wagered + wagered),
+        profit: roundMoney(current.profit + profit),
+      },
+    },
+  };
 }

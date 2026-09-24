@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { RARITIES } from '../data/rarities';
 import type { Skin } from '../types/types';
-import { exteriorShort } from '../utils/exterior';
+import { wearTag } from '../utils/exterior';
 import { formatMoney } from '../utils/format';
 import { isJackpot } from '../utils/effects';
 import { cx, rarityStyle } from '../utils/ui';
@@ -18,12 +18,13 @@ export function DropReveal({ skin, children }: { skin: Skin; children?: ReactNod
       </div>
       <div className="text-sm text-slate-400">
         {skin.statTrak && <span className="mr-1 font-semibold text-orange-400">StatTrak™</span>}
+        {skin.souvenir && <span className="mr-1 font-semibold text-yellow-300">Souvenir</span>}
         {skin.weapon}
       </div>
       <div className="text-xl font-semibold text-white">{skin.finish}</div>
       <div className="mt-0.5 flex items-center justify-center gap-2 text-xs">
         <span className="rarity-text font-bold uppercase tracking-wider">{RARITIES[skin.rarity].label}</span>
-        <span className="rounded bg-white/5 px-1.5 py-0.5 text-slate-400">{exteriorShort(skin.exterior)}</span>
+        <span className="rounded bg-white/5 px-1.5 py-0.5 text-slate-400">{wearTag(skin)}</span>
       </div>
       <div className={cx('mt-2 font-display text-3xl font-bold tabular-nums', jackpot ? 'text-amber-300' : 'text-white')}>
         {formatMoney(skin.price)}

@@ -1,4 +1,17 @@
-import { COINFLIP_PAYOUT, CRASH_GROWTH, CRASH_MAX_MULTIPLIER, CRASH_RETURN, MINES_GRID, MINES_RETURN, PLINKO_ROWS } from './config';
+import type { TowersDifficulty } from '../types/types';
+import {
+  COINFLIP_PAYOUT,
+  CRASH_GROWTH,
+  CRASH_MAX_MULTIPLIER,
+  CRASH_RETURN,
+  HILO_MAX_STEPS,
+  HILO_STEP_RETURN,
+  MINES_GRID,
+  MINES_RETURN,
+  PLINKO_ROWS,
+  TOWERS_FLOORS,
+  TOWERS_RETURN,
+} from './config';
 import { secureRandom } from './random';
 
 // ---------------------------------------------------------------- coinflip
@@ -45,6 +58,54 @@ export const ROULETTE_PAYOUT: Record<RouletteColor, number> = { red: 2, black: 2
 
 export function spinRoulette(): number {
   return Math.floor(secureRandom() * ROULETTE_SLOTS.length);
+}
+
+// ---------------------------------------------------------------- towers
+
+export const TOWERS_LAYOUT: Record<TowersDifficulty, { tiles: number; bombs: number }> = {
+  easy: { tiles: 4, bombs: 1 },
+  medium: { tiles: 3, bombs: 1 },
+  hard: { tiles: 2, bombs: 1 },
+  expert: { tiles: 3, bombs: 2 },
+};
+
+/** Cash-out multiplier after clearing `floors` floors. */
+export function towersMultiplier(difficulty: TowersDifficulty, floors: number): number {
+  if (floors <= 0) return 1;
+  const { tiles, bombs } = TOWERS_LAYOUT[difficulty];
+  return Math.floor(TOWERS_RETURN * Math.pow(tiles / (tiles - bombs), floors) * 100) / 100;
+}
+
+/** Bomb positions for every floor, decided up front. */
+export function placeTowerBombs(difficulty: TowersDifficulty): number[][] {
+  const { tiles, bombs } = TOWERS_LAYOUT[difficulty];
+  return Array.from({ length: TOWERS_FLOORS }, () => {
+    const cells = Array.from({ length: tiles }, (_, i) => i);
+    for (let i = cells.length - 1; i > 0; i--) {
+      const j = Math.floor(secureRandom() * (i + 1));
+      [cells[i], cells[j]] = [cells[j], cells[i]];
+    }
+    return cells.slice(0, bombs).sort((a, b) => a - b);
+  });
+}
+
+// ---------------------------------------------------------------- hi-lo
+
+export type HiloGuess = 'higher' | 'lower';
+
+/** Chance that the next card is higher-or-equal / lower-or-equal than `card` (1..13, infinite deck). */
+export function hiloChance(card: number, guess: HiloGuess): number {
+  return guess === 'higher' ? (14 - card) / 13 : card / 13;
+}
+
+/** Multiplier a correct guess adds; guesses that always win are not allowed. */
+export function hiloStep(card: number, guess: HiloGuess): number {
+  const chance = hiloChance(card, guess);
+  return chance >= 1 ? 1 : HILO_STEP_RETURN / chance;
+}
+
+export function drawHiloCards(): number[] {
+  return Array.from({ length: HILO_MAX_STEPS + 1 }, () => 1 + Math.floor(secureRandom() * 13));
 }
 
 // ---------------------------------------------------------------- mines

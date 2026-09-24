@@ -1,4 +1,4 @@
-import type { Exterior } from '../types/types';
+import type { Exterior, Skin, WeaponCategory } from '../types/types';
 
 export function exteriorFromFloat(float: number): Exterior {
   if (float < 0.07) return 'Factory New';
@@ -18,4 +18,11 @@ const SHORT: Record<Exterior, string> = {
 
 export function exteriorShort(exterior: Exterior): string {
   return SHORT[exterior];
+}
+
+const WEARLESS_TAG: Partial<Record<WeaponCategory, string>> = { agent: 'AGENT', charm: 'CHARM', music: 'MUSIC', knife: 'VANILLA' };
+
+/** Short wear tag for cards: "FN", "MW"… or the item type for items without wear. */
+export function wearTag(skin: Skin): string {
+  return skin.wearless ? (WEARLESS_TAG[skin.category] ?? '—') : SHORT[skin.exterior];
 }

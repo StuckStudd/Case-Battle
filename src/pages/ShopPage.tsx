@@ -3,13 +3,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { EmptyState, PageHeader } from '../components/common';
 import { ItemFilters } from '../components/ItemFilters';
 import { LegendsShowcase } from '../components/LegendsShowcase';
+import { MarketBanner } from '../components/MarketBanner';
 import { Pagination, usePagination } from '../components/Pagination';
 import { Modal } from '../components/Modal';
+import { NetWorthChart } from '../components/NetWorthChart';
 import { SkinCard } from '../components/SkinCard';
 import { SkinImage } from '../components/SkinImage';
 import { useToast } from '../components/Toast';
 import { RARITIES } from '../data/rarities';
-import { BASE_SKINS, getVariants } from '../data/skinData';
+import { HOUR_MS } from '../data/market';
+import { BASE_SKINS, getVariants, priceHistory } from '../data/skinData';
 import { useT } from '../i18n';
 import { useSound } from '../hooks/useSound';
 import { useStore } from '../store/inventoryStore';
@@ -43,23 +46,33 @@ function ShopSkeleton() {
 
 const cheapest = (baseId: string) => Math.min(...getVariants(baseId).map((v) => v.price));
 
-/** Lets the player choose wear and StatTrak before buying. */
+type Version = 'normal' | 'statTrak' | 'souvenir';
+const versionOf = (s: Skin): Version => (s.statTrak ? 'statTrak' : s.souvenir ? 'souvenir' : 'normal');
+
+/** Lets the player choose wear and version (StatTrak™ / Souvenir) before buying, with a week of price history. */
 function BuyModal({ base, onClose, onBuy }: { base: Skin | null; onClose: () => void; onBuy: (skin: Skin) => void }) {
   const t = useT();
   const balance = useStore().state.balance;
   const variants = useMemo(() => (base ? getVariants(base.baseId) : []), [base]);
   const [exterior, setExterior] = useState(base?.exterior);
-  const [statTrak, setStatTrak] = useState(false);
+  const [version, setVersion] = useState<Version>('normal');
 
   useEffect(() => {
     setExterior(base?.exterior);
-    setStatTrak(false);
+    setVersion('normal');
   }, [base]);
 
-  if (!base) return null;
+  const chosen = variants.find((v) => v.exterior === exterior && versionOf(v) === version) ?? variants.find((v) => v.exterior === exterior) ?? base;
+  const history = useMemo(() => {
+    if (!chosen) return [];
+    const now = Date.now();
+    const prices = priceHistory(chosen);
+    return prices.map((v, i) => ({ t: now - (prices.length - 1 - i) * HOUR_MS, v }));
+  }, [chosen]);
+
+  if (!base || !chosen) return null;
   const exteriors = [...new Set(variants.map((v) => v.exterior))];
-  const hasStatTrak = variants.some((v) => v.statTrak);
-  const chosen = variants.find((v) => v.exterior === exterior && v.statTrak === statTrak) ?? base;
+  const versions = (['normal', 'statTrak', 'souvenir'] as const).filter((ver) => variants.some((v) => versionOf(v) === ver));
   const canAfford = balance >= chosen.price;
 
   return (
@@ -71,6 +84,7 @@ function BuyModal({ base, onClose, onBuy }: { base: Skin | null; onClose: () => 
         </div>
         <div className="text-sm text-slate-500">
           {chosen.statTrak && <span className="mr-1 font-semibold text-orange-400">StatTrak™</span>}
+          {chosen.souvenir && <span className="mr-1 font-semibold text-yellow-300">Souvenir</span>}
           {chosen.weapon}
         </div>
         <h2 className="font-display text-2xl font-bold text-white">{chosen.finish}</h2>
@@ -79,45 +93,55 @@ function BuyModal({ base, onClose, onBuy }: { base: Skin | null; onClose: () => 
           <span className="text-slate-500">{chosen.collection}</span>
         </div>
 
-        <div className="mb-1.5 mt-4 text-xs text-slate-400">{t('shop.wear')}</div>
-        <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
-          {exteriors.map((ext) => {
-            const v = variants.find((x) => x.exterior === ext && x.statTrak === statTrak) ?? variants.find((x) => x.exterior === ext);
-            return (
-              <button
-                key={ext}
-                type="button"
-                onClick={() => setExterior(ext)}
-                className={cx(
-                  'rounded-lg border px-2 py-1.5 text-center transition',
-                  exterior === ext ? 'border-amber-400 bg-amber-400/10' : 'border-line bg-white/[0.02] hover:border-white/20',
-                )}
-              >
-                <div className="text-xs font-bold text-white">{exteriorShort(ext)}</div>
-                <div className="text-[10px] tabular-nums text-slate-400">{v ? formatMoney(v.price) : '—'}</div>
+        {versions.length > 1 && (
+          <div className="mt-4 flex flex-wrap gap-1.5">
+            {versions.map((ver) => (
+              <button key={ver} type="button" className="chip px-3 py-1.5 text-xs" data-active={version === ver} onClick={() => setVersion(ver)}>
+                <span className={ver === 'statTrak' ? 'text-orange-400' : ver === 'souvenir' ? 'text-yellow-300' : ''}>{t(`shop.version.${ver}`)}</span>
               </button>
-            );
-          })}
-        </div>
-
-        {hasStatTrak && (
-          <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-slate-300">
-            <input type="checkbox" checked={statTrak} onChange={(e) => setStatTrak(e.target.checked)} className="size-4 accent-orange-500" />
-            <span className="font-semibold text-orange-400">StatTrak™</span>
-            <span className="text-xs text-slate-500">{t('shop.statTrakHint')}</span>
-          </label>
+            ))}
+          </div>
         )}
 
-        <div className="mt-4 flex items-end justify-between">
-          <div>
-            <div className="text-xs text-slate-500">{t('shop.float', { float: chosen.float.toFixed(4) })}</div>
-            {chosen.priceChange !== 0 && (
-              <div className={cx('mt-0.5 flex items-center gap-1 text-xs', chosen.priceChange > 0 ? 'text-emerald-400' : 'text-rose-400')}>
-                {chosen.priceChange > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-                {t('shop.todayChange', { change: `${chosen.priceChange > 0 ? '+' : ''}${(chosen.priceChange * 100).toFixed(1)}%` })}
-              </div>
-            )}
-          </div>
+        {!chosen.wearless && (
+          <>
+            <div className="mb-1.5 mt-4 text-xs text-slate-400">{t('shop.wear')}</div>
+            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+              {exteriors.map((ext) => {
+                const v = variants.find((x) => x.exterior === ext && versionOf(x) === version);
+                return (
+                  <button
+                    key={ext}
+                    type="button"
+                    disabled={!v}
+                    onClick={() => setExterior(ext)}
+                    className={cx(
+                      'rounded-lg border px-2 py-1.5 text-center transition disabled:opacity-35',
+                      exterior === ext ? 'border-amber-400 bg-amber-400/10' : 'border-line bg-white/[0.02] hover:border-white/20',
+                    )}
+                  >
+                    <div className="text-xs font-bold text-white">{exteriorShort(ext)}</div>
+                    <div className="text-[10px] tabular-nums text-slate-400">{v ? formatMoney(v.price) : '—'}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        <div className="mb-1 mt-4 flex items-center justify-between text-xs text-slate-400">
+          <span>{t('shop.priceWeek')}</span>
+          {chosen.priceChange !== 0 && (
+            <span className={cx('flex items-center gap-1', chosen.priceChange > 0 ? 'text-emerald-400' : 'text-rose-400')}>
+              {chosen.priceChange > 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {t('shop.todayChange', { change: `${chosen.priceChange > 0 ? '+' : ''}${(chosen.priceChange * 100).toFixed(1)}%` })}
+            </span>
+          )}
+        </div>
+        <NetWorthChart points={history} label={t('shop.priceChartLabel', { name: chosen.name })} valueHeader={t('shop.price')} />
+
+        <div className="mt-3 flex items-end justify-between">
+          <div className="text-xs text-slate-500">{chosen.wearless ? '' : t('shop.float', { float: chosen.float.toFixed(4) })}</div>
           <div className="font-display text-3xl font-bold tabular-nums text-amber-300">{formatMoney(chosen.price)}</div>
         </div>
 
@@ -207,6 +231,7 @@ export function ShopPage({ onFirstPurchase, onUseForUpgrade }: ShopPageProps) {
         </div>
       )}
 
+      <MarketBanner />
       <LegendsShowcase onSelect={setBuying} />
 
       <div className="mb-5">

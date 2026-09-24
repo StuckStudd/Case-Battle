@@ -246,8 +246,8 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
             <dl className="mt-4 grid grid-cols-2 gap-2 text-sm">
               {[
                 [t('inventory.price'), formatMoney(openValue)],
-                [t('inventory.exterior'), `${openSkin.exterior}${openSkin.statTrak ? ' · StatTrak™' : ''}`],
-                [t('inventory.float'), (openItem.float ?? openSkin.float).toFixed(openItem.float ? 5 : 6)],
+                [t('inventory.exterior'), `${openSkin.wearless ? '—' : openSkin.exterior}${openSkin.statTrak ? ' · StatTrak™' : ''}${openSkin.souvenir ? ' · Souvenir' : ''}`],
+                [t('inventory.float'), openSkin.wearless ? '—' : (openItem.float ?? openSkin.float).toFixed(openItem.float ? 5 : 6)],
                 [t('inventory.weapon'), openSkin.weapon],
                 [t('inventory.collection'), openSkin.collection],
                 [t('inventory.acquired'), formatDateTime(openItem.acquiredAt)],

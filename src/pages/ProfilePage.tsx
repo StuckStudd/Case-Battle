@@ -18,7 +18,9 @@ import { useMemo, useState } from 'react';
 import { PageHeader, StatCard } from '../components/common';
 import { LevelBadge } from '../components/LevelBadge';
 import { Modal } from '../components/Modal';
+import { GameStatsTable } from '../components/GameStatsTable';
 import { NetWorthChart } from '../components/NetWorthChart';
+import { PrestigePanel } from '../components/PrestigePanel';
 import { SkinCard } from '../components/SkinCard';
 import { ACHIEVEMENTS } from '../data/achievements';
 import { FRAMES, FRAME_STYLES } from '../data/season';
@@ -183,6 +185,8 @@ export function ProfilePage() {
         <StatCard label={t('stats.wagered')} value={formatMoney(stats.totalWagered)} icon={Coins} />
       </div>
 
+      <PrestigePanel />
+
       <section className="panel p-5">
         <h2 className="mb-1 flex items-center gap-2 font-display text-lg font-bold text-white">
           <LineChart size={18} className="text-amber-300" /> {t('profile.netWorthChart')}
@@ -190,6 +194,8 @@ export function ProfilePage() {
         <p className="mb-3 text-xs text-slate-500">{t('profile.netWorthHint')}</p>
         <NetWorthChart points={state.netWorthHistory} />
       </section>
+
+      <GameStatsTable />
 
       <section className="panel p-5">
         <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-bold text-white">

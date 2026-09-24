@@ -1,4 +1,5 @@
 import type { AppState, Skin } from '../types/types';
+import { prestigeDailyMultiplier } from '../data/extras';
 import { DAILY_REWARDS } from './config';
 import { roundMoney } from './format';
 import { getInventoryValue } from './stats';
@@ -69,7 +70,7 @@ export function getDailyStatus(state: AppState, now = Date.now()): DailyStatus {
   const continues = lastClaimDay === today - 1;
   const nextStreak = available ? (continues ? streak + 1 : 1) : streak;
   const nextDay = ((nextStreak - 1) % DAILY_REWARDS.length) + 1;
-  const reward = roundMoney(DAILY_REWARDS[nextDay - 1] * dailyMultiplier(levelFromXp(state.xp)));
+  const reward = roundMoney(DAILY_REWARDS[nextDay - 1] * dailyMultiplier(levelFromXp(state.xp)) * prestigeDailyMultiplier(state.prestige));
   return { available, nextDay, nextStreak, reward };
 }
 

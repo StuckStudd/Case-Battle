@@ -6,6 +6,8 @@ import type {
   AppState,
   CrashRound,
   DailyState,
+  GameStat,
+  HiloGame,
   LuckState,
   NetWorthPoint,
   HistoryEntry,
@@ -17,6 +19,8 @@ import type {
   Settings,
   SpecialPattern,
   StickerItem,
+  TowersDifficulty,
+  TowersGame,
   TradeOffer,
   UpgradeOutcome,
   UserStats,
@@ -28,8 +32,10 @@ import {
   STARTING_BALANCE,
   STORAGE_KEY,
   STORAGE_VERSION,
+  TOWERS_FLOORS,
 } from '../utils/config';
 import { roundMoney } from '../utils/format';
+import { TOWERS_LAYOUT } from '../utils/gamesEngine';
 import { createId } from '../utils/random';
 import { EMPTY_LUCK, EMPTY_STATS, createInitialState, finishUpgrade, settleBattle, settleCrash, settleJackpot } from './transitions';
 
@@ -67,7 +73,7 @@ function getStorage(): Storage | null {
   }
 }
 
-const ORIGINS: ItemOrigin[] = ['shop', 'upgrade', 'case', 'contract', 'battle', 'trade', 'crash'];
+const ORIGINS: ItemOrigin[] = ['shop', 'upgrade', 'case', 'contract', 'battle', 'trade', 'crash', 'jackpot', 'wheel'];
 const SPECIALS: SpecialPattern[] = ['ruby', 'sapphire', 'blackPearl', 'blueGem', 'fullFade', 'lowFloat'];
 
 /** Tracks whether any field had to be dropped or fixed while sanitizing. */
@@ -296,6 +302,45 @@ function sanitizeMines(raw: unknown): MinesGame | null {
   return { id: raw.id, bet, mines, revealed: revealed.filter((n) => !mines.includes(n)) };
 }
 
+const intList = (raw: unknown, max: number): number[] | null =>
+  Array.isArray(raw) ? raw.filter((n): n is number => Number.isInteger(n) && n >= 0 && n < max) : null;
+
+function sanitizeTowers(raw: unknown): TowersGame | null {
+  if (!isRecord(raw) || typeof raw.id !== 'string') return null;
+  const bet = finiteNumber(raw.bet);
+  const difficulty = raw.difficulty as TowersDifficulty;
+  if (bet === null || bet <= 0 || !(difficulty in TOWERS_LAYOUT)) return null;
+  const { tiles, bombs: count } = TOWERS_LAYOUT[difficulty];
+  const bombs = Array.isArray(raw.bombs) ? raw.bombs.map((floor) => intList(floor, tiles)) : [];
+  const picks = intList(raw.picks, tiles);
+  if (bombs.length !== TOWERS_FLOORS || bombs.some((f) => !f || f.length !== count) || !picks || picks.length >= TOWERS_FLOORS) return null;
+  return { id: raw.id, bet, difficulty, bombs: bombs as number[][], picks };
+}
+
+function sanitizeHilo(raw: unknown): HiloGame | null {
+  if (!isRecord(raw) || typeof raw.id !== 'string') return null;
+  const bet = finiteNumber(raw.bet);
+  const index = finiteNumber(raw.index);
+  const multiplier = finiteNumber(raw.multiplier);
+  const cards = Array.isArray(raw.cards) ? raw.cards.filter((n): n is number => Number.isInteger(n) && n >= 1 && n <= 13) : [];
+  if (bet === null || bet <= 0 || index === null || !Number.isInteger(index) || index < 0 || cards.length < index + 2 || multiplier === null || multiplier < 1) return null;
+  return { id: raw.id, bet, cards, index, multiplier };
+}
+
+function sanitizeGameStats(raw: unknown): Record<string, GameStat> {
+  if (!isRecord(raw)) return {};
+  const out: Record<string, GameStat> = {};
+  for (const [id, value] of Object.entries(raw)) {
+    if (!isRecord(value)) continue;
+    const played = finiteNumber(value.played);
+    const wagered = finiteNumber(value.wagered);
+    const profit = finiteNumber(value.profit);
+    if (played === null || wagered === null || profit === null) continue;
+    out[id] = { played: Math.max(0, Math.floor(played)), wagered: Math.max(0, wagered), profit };
+  }
+  return out;
+}
+
 function sanitizeDaily(raw: unknown): DailyState {
   if (!isRecord(raw)) return { lastClaimDay: null, streak: 0 };
   const day = finiteNumber(raw.lastClaimDay);
@@ -449,6 +494,12 @@ export function sanitizeState(raw: unknown): { state: AppState; repaired: boolea
     isFirstVisit: typeof raw.isFirstVisit === 'boolean' ? raw.isFirstVisit : false,
     onboardingComplete: typeof raw.onboardingComplete === 'boolean' ? raw.onboardingComplete : true,
     pendingUpgrade: sanitizeOutcome(raw.pendingUpgrade),
+    pendingTowers: sanitizeTowers(raw.pendingTowers),
+    pendingHilo: sanitizeHilo(raw.pendingHilo),
+    prestige: Math.max(0, Math.floor(finiteNumber(raw.prestige) ?? 0)),
+    wheelLastSpin: Math.max(0, finiteNumber(raw.wheelLastSpin) ?? 0),
+    promoClaimed: stringArray(raw.promoClaimed) ?? [],
+    gameStats: sanitizeGameStats(raw.gameStats),
   };
 
   // An upgrade interrupted by a reload is settled with its already-decided result.

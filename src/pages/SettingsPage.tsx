@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { PageHeader, Toggle } from '../components/common';
 import { ConfirmModal } from '../components/Modal';
+import { PromoCode } from '../components/PromoCode';
 import { useToast } from '../components/Toast';
 import { useT } from '../i18n';
 import type { TKey } from '../i18n';
@@ -174,6 +175,8 @@ export function SettingsPage({ onReset }: { onReset: () => void }) {
           control={<Toggle label={t('settings.fast')} checked={settings.fastRoulette} onChange={(value) => updateSettings({ fastRoulette: value })} />}
         />
       </section>
+
+      <PromoCode />
 
       <section className="panel flex flex-wrap items-center gap-4 p-5">
         <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-white/[0.04] text-amber-300">

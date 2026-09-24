@@ -17,8 +17,11 @@ export function setBalance(state: AppState, amount: number): AppState {
 }
 
 export function giveItems(state: AppState, skinId: string, count: number, now = Date.now()): AppState {
-  if (!getSkin(skinId)) return state;
-  const n = Math.max(1, Math.min(100, Math.floor(count)));
+  const skin = getSkin(skinId);
+  if (!skin) return state;
+  // The unique item exists at most once.
+  if (skin.adminOnly && state.inventory.some((i) => i.skinId === skinId)) return state;
+  const n = skin.adminOnly ? 1 : Math.max(1, Math.min(100, Math.floor(count)));
   const items: InventoryItem[] = Array.from({ length: n }, (_, i) => ({ uid: createId('itm'), skinId, acquiredAt: now + i, origin: 'admin' }));
   return { ...state, inventory: [...items, ...state.inventory] };
 }

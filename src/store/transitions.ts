@@ -226,7 +226,7 @@ function busy(state: AppState): boolean {
 
 export function buySkin(state: AppState, skinId: string, now = Date.now()): Transition<InventoryItem> {
   const skin = getSkin(skinId);
-  if (!isValidSkin(skin)) return fail('itemUnavailable');
+  if (!isValidSkin(skin) || skin.adminOnly) return fail('itemUnavailable');
   if (state.balance < skin.price) return fail('insufficientBalance');
   const item = plainItem(skin, 'shop', now);
   return {
@@ -276,7 +276,7 @@ export function beginUpgrade(state: AppState, request: UpgradeRequest): Transiti
   if (balanceUsed > state.balance) return fail('insufficientBalance');
 
   const target = getSkin(request.targetSkinId);
-  if (!isValidSkin(target)) return fail('targetInvalid');
+  if (!isValidSkin(target) || target.adminOnly) return fail('targetInvalid');
 
   const stakeValue = getStakeValue({ values: items.map(itemValue), balance: balanceUsed });
   let outcome: UpgradeOutcome;

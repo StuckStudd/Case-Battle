@@ -13,10 +13,16 @@ export interface LegendDef {
   float: number;
   statTrak?: boolean;
   prototype?: boolean;
+  /** Mythic rarity: a tier above legendary. */
+  mythic?: boolean;
+  /** Only the admin panel can create it. */
+  adminOnly?: boolean;
 }
 
 export const LEGENDS_COLLECTION = 'Legendary Items';
 export const PROTOTYPES_COLLECTION = 'Simulator Prototypes';
+export const MYTHIC_COLLECTION = 'Mythic Items';
+export const UNIQUE_COLLECTION = 'One of One';
 
 export const LEGENDS: LegendDef[] = [
   { id: 'legend-glock-full-fade', base: 'glock-fade', tag: '100% Fade 0.0001', price: 120_000, float: 0.0001 },
@@ -51,4 +57,18 @@ export const LEGENDS: LegendDef[] = [
   { id: 'proto-butterfly-genesis', base: 'butterfly-knife-fade', tag: 'Genesis #000', price: 250_000_000, float: 0, prototype: true },
   { id: 'proto-gungnir-golden', base: 'awp-gungnir', tag: 'Golden Genesis', price: 500_000_000, float: 0, prototype: true },
   { id: 'proto-karambit-infinity', base: 'karambit-crimson-web', tag: 'Infinity', price: 1_000_000_000, float: 0, prototype: true },
+
+  // Mythic: billions of dollars. Obtainable only through upgrades, the top cases and the mega jackpot.
+  { id: 'mythic-karambit-heart-of-mars', base: 'karambit-doppler-ruby', tag: 'Heart of Mars', price: 2_000_000_000, float: 0, mythic: true },
+  { id: 'mythic-butterfly-ocean-eye', base: 'butterfly-doppler-sapphire', tag: 'Ocean Eye', price: 3_000_000_000, float: 0, mythic: true },
+  { id: 'mythic-dlore-dragon-king', base: 'awp-dragon-lore', tag: 'Dragon King', price: 4_000_000_000, float: 0, mythic: true },
+  { id: 'mythic-pandora-prime', base: 'sport-pandoras-box', tag: 'Pandora Prime', price: 5_000_000_000, float: 0.06, mythic: true },
+  { id: 'mythic-howl-alpha', base: 'm4a4-howl', tag: 'Alpha Howl', price: 7_500_000_000, float: 0, statTrak: true, mythic: true },
+  { id: 'mythic-m9-abyss', base: 'm9-bayonet-doppler-black-pearl', tag: 'Abyss', price: 10_000_000_000, float: 0, mythic: true },
+  { id: 'mythic-lotus-eternal-bloom', base: 'ak-47-wild-lotus', tag: 'Eternal Bloom', price: 15_000_000_000, float: 0, mythic: true },
+  { id: 'mythic-karambit-emerald-throne', base: 'karambit-gamma-doppler-emerald', tag: 'Emerald Throne', price: 25_000_000_000, float: 0, mythic: true },
+  { id: 'mythic-gungnir-ragnarok', base: 'awp-gungnir', tag: 'Ragnarök', price: 50_000_000_000, float: 0, mythic: true },
+
+  // Unique: exists only if an admin creates it.
+  { id: 'unique-karambit-creator', base: 'karambit-case-hardened', tag: "Blue Gem #0 — Creator's Edition", price: 1_000_000_000_000, float: 0, statTrak: true, mythic: true, adminOnly: true },
 ];

@@ -573,7 +573,7 @@ export const en = {
   'ach.legend5.title': "♛ Museum",
   'ach.legend5.desc': "Own 5 different legendary items at once",
 
-  'legends.title': "Legendary items",
+  'legends.title': "Legendary & mythic items",
   'legends.hint': "One-of-a-kind endgame items. Buy one, or chase it through upgrades, the Legend and Billionaire cases and the mega jackpot.",
   'legends.owned': "Yours",
 
@@ -838,6 +838,10 @@ export const en = {
   'error.pickemLocked': "You already played today's Pick'em",
   'error.pickemInvalid': "Pick a winner for every match",
   'gameStats.matches': "Matches",
+
+  // additions: mythic items
+  'legends.unique': "Unique",
+  'legends.adminOnly': "This one-of-one item can only be given by the admin.",
 
   // load notices
   'load.corrupted': 'Saved data was corrupted',

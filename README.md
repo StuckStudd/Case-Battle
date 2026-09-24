@@ -12,6 +12,7 @@ A browser simulator of CS2 skin upgrades, cases, trade-up contracts and mini-gam
 - **2,376 items:** every CS2 weapon skin, knife and glove finish, every Doppler and Gamma Doppler phase (Ruby, Sapphire, Black Pearl, Emerald, Phase 1–4), vanilla knives, 63 agents, 78 charms and 89 music kits, with Steam artwork. Real Skinport prices per wear (FN–BS), StatTrak™ and Souvenir, from $0.03 to $35,000.
 - **Live market:** prices move every hour, every item has a 7-day price chart, and each day brings a market event (knife rally, glove boom, crash, discontinued collection…).
 - **Legendary items:** 31 one-of-a-kind items from $120K to $1B, such as Karambit «Blue Gem #387», StatTrak Howl with 4× iBUYPOWER Holo, and simulator prototypes.
+- **Mythic items:** 9 items from $2B to $50B (upgrades, the top cases and the mega jackpot only), plus one unique $1T item that exists only if the admin creates it.
 - **Up to 208 cases:**
   - 42 official CS2 cases with their real contents and odds (Mil-Spec 79.92% … ★ 0.26%, StatTrak 10%);
   - 150 major souvenir packages that drop Souvenir skins;

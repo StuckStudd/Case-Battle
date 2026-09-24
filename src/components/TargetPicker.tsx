@@ -1,6 +1,6 @@
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { SKINS } from '../data/skinData';
+import { OBTAINABLE_SKINS } from '../data/skinData';
 import { useT } from '../i18n';
 import type { Skin } from '../types/types';
 import { PICKER_PAGE_SIZE } from '../utils/config';
@@ -27,7 +27,7 @@ export function TargetPicker({ stakeValue, luckBonus, selectedId, disabled, onSe
   const [descending, setDescending] = useState(false);
 
   const visible = useMemo(() => {
-    const candidates = stakeValue > 0 ? SKINS.filter((s) => isTargetEligible(stakeValue, s.price)) : SKINS;
+    const candidates = stakeValue > 0 ? OBTAINABLE_SKINS.filter((s) => isTargetEligible(stakeValue, s.price)) : OBTAINABLE_SKINS;
     return filterAndSort(candidates, (s) => s, {
       ...DEFAULT_FILTERS,
       query,

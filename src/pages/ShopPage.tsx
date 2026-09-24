@@ -174,7 +174,8 @@ export function ShopPage({ onFirstPurchase, onUseForUpgrade }: ShopPageProps) {
   }, []);
 
   const visible = useMemo(() => {
-    const pool = affordableOnly ? BASE_SKINS.filter((s) => cheapest(s.baseId) <= state.balance) : BASE_SKINS;
+    const forSale = BASE_SKINS.filter((s) => !s.adminOnly);
+    const pool = affordableOnly ? forSale.filter((s) => cheapest(s.baseId) <= state.balance) : forSale;
     return filterAndSort(pool, (s) => s, filters, { favorites });
   }, [affordableOnly, state.balance, filters, favorites]);
   const { page, pageCount, pageItems, setPage } = usePagination(visible, SHOP_PAGE_SIZE);

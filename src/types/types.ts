@@ -8,7 +8,9 @@ export type Rarity =
   | 'contraband'
   | 'rare'
   /** One-of-a-kind endgame items (data/legends.ts). */
-  | 'legendary';
+  | 'legendary'
+  /** Beyond legendary: billions of dollars, and one item only an admin can create. */
+  | 'mythic';
 
 export type WeaponCategory =
   | 'rifle'
@@ -52,6 +54,8 @@ export interface Skin {
   souvenir?: boolean;
   /** Items without wear or float: vanilla knives, agents, charms, music kits. */
   wearless?: boolean;
+  /** Never sold, dropped or won: only the admin panel can give it. */
+  adminOnly?: boolean;
   /** Price change versus 24 hours ago, e.g. 0.031 = +3.1%. */
   priceChange: number;
 }

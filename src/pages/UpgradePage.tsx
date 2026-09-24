@@ -9,7 +9,7 @@ import { UpgradeHistory } from '../components/UpgradeHistory';
 import { UpgradePanel } from '../components/UpgradePanel';
 import type { StakedItem } from '../components/UpgradePanel';
 import type { WheelStatus } from '../components/UpgradeRoulette';
-import { SKINS, getSkin } from '../data/skinData';
+import { OBTAINABLE_SKINS, getSkin } from '../data/skinData';
 import { useSound } from '../hooks/useSound';
 import { useStore } from '../store/inventoryStore';
 import { luckFor } from '../utils/adminLuck';
@@ -207,8 +207,8 @@ export function UpgradePage({ selection, onSelectionChange, onNavigate, onOpenFr
         durationMs={state.settings.fastRoulette ? ROULETTE_FAST_DURATION_MS : ROULETTE_DURATION_MS}
         busy={busy}
         onUpgrade={handleUpgrade}
-        onMultiplier={(m) => pickTarget(findTargetForMultiplier(SKINS, stakeTotal, m), `x${m}`)}
-        onChancePreset={(c) => pickTarget(findTargetForChance(SKINS, stakeTotal, c, luckBonus), `${c}%`)}
+        onMultiplier={(m) => pickTarget(findTargetForMultiplier(OBTAINABLE_SKINS, stakeTotal, m), `x${m}`)}
+        onChancePreset={(c) => pickTarget(findTargetForChance(OBTAINABLE_SKINS, stakeTotal, c, luckBonus), `${c}%`)}
         luckBonus={luckBonus}
         lossStreak={state.luck.lossStreak}
         soundEnabled={state.settings.soundEnabled}

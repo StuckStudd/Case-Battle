@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CASES, getCaseTable } from '../src/data/cases';
-import { SKINS, BASE_SKINS, getVariants } from '../src/data/skinData';
+import { SKINS, BASE_SKINS, OBTAINABLE_SKINS, getVariants } from '../src/data/skinData';
+import { giveItems } from '../src/store/admin';
 import { marketFactor } from '../src/data/market';
 import { diffLedger, appendLedger, revertEntry } from '../src/store/ledger';
 import { sanitizeState } from '../src/store/storage';
@@ -157,6 +158,28 @@ describe('economy actions', () => {
     }
     const last = T.scrapeSticker(state, uid, 0);
     expect(last.ok && last.value.removed).toBe(true);
+  });
+});
+
+describe('mythic and unique items', () => {
+  const unique = SKINS.find((s) => s.adminOnly)!;
+
+  it('has 9 mythic items and one admin-only unique item', () => {
+    expect(SKINS.filter((s) => s.rarity === 'mythic')).toHaveLength(10);
+    expect(SKINS.filter((s) => s.adminOnly)).toHaveLength(1);
+    expect(unique.price).toBeGreaterThan(Math.max(...SKINS.filter((s) => !s.adminOnly).map((s) => s.price)));
+  });
+
+  it('the unique item cannot be bought, dropped or upgraded into', () => {
+    expect(OBTAINABLE_SKINS.includes(unique)).toBe(false);
+    expect(T.buySkin(rich({ balance: 1e13 }), unique.id).ok).toBe(false);
+    for (const def of CASES) expect(getCaseTable(def).entries.some((e) => e.skin.adminOnly)).toBe(false);
+  });
+
+  it('the admin can give exactly one copy', () => {
+    const once = giveItems(rich(), unique.id, 5);
+    expect(once.inventory.filter((i) => i.skinId === unique.id)).toHaveLength(1);
+    expect(giveItems(once, unique.id, 1).inventory.filter((i) => i.skinId === unique.id)).toHaveLength(1);
   });
 });
 

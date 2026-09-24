@@ -575,7 +575,7 @@ export const ru: Record<keyof typeof en, string> = {
   'ach.legend5.title': "♛ Музей",
   'ach.legend5.desc': "Держите 5 разных легендарных предметов одновременно",
 
-  'legends.title': "Легендарные предметы",
+  'legends.title': "Легендарные и мифические предметы",
   'legends.hint': "Уникальные предметы для самых богатых. Купите или добейтесь их через апгрейд, кейсы Legend и Billionaire и мега-джекпот.",
   'legends.owned': "Ваш",
 
@@ -840,6 +840,10 @@ export const ru: Record<keyof typeof en, string> = {
   'error.pickemLocked': "Сегодняшний Pick'em уже сыгран",
   'error.pickemInvalid': "Выберите победителя в каждом матче",
   'gameStats.matches': "Матчи",
+
+  // additions: mythic items
+  'legends.unique': "Уникальный",
+  'legends.adminOnly': "Этот единственный в мире предмет может выдать только админ.",
 
   // load notices
   'load.corrupted': 'Сохранение повреждено',

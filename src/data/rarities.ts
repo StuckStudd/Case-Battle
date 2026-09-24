@@ -18,6 +18,7 @@ export const RARITIES: Record<Rarity, RarityMeta> = {
   contraband: { id: 'contraband', label: 'Contraband', short: 'Contraband', color: '#ff8a3d', order: 6 },
   rare: { id: 'rare', label: '★ Rare Special Item', short: '★ Rare', color: '#ffd24a', order: 7 },
   legendary: { id: 'legendary', label: '♛ Legendary', short: '♛ Legend', color: '#ff4fd8', order: 8 },
+  mythic: { id: 'mythic', label: '✦ Mythic', short: '✦ Mythic', color: '#2de2ff', order: 9 },
 };
 
 export const RARITY_LIST: RarityMeta[] = Object.values(RARITIES).sort((a, b) => a.order - b.order);

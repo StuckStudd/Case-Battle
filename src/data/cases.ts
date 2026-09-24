@@ -4,7 +4,7 @@ import type { Exterior, Rarity, Skin, WeaponCategory } from '../types/types';
 import { SEASONAL_EVENTS, isSeasonActive } from './events';
 import type { SeasonalEvent } from './events';
 import { OFFICIAL_CASES } from './officialCases';
-import { SKINS, getFloatRange, getSkin, getVariants } from './skinData';
+import { OBTAINABLE_SKINS, getFloatRange, getSkin, getVariants } from './skinData';
 
 const STEAM_CDN = 'https://community.akamai.steamstatic.com/economy/image/';
 
@@ -284,12 +284,12 @@ export function getCaseTable(def: CaseDef): DropTable<Skin> {
   let table = tables.get(def.id);
   if (!table) {
     const theme = def.season ? SEASONAL_EVENTS.find((e) => e.id === def.season)?.theme : undefined;
-    const pool = SKINS.filter(
+    const pool = OBTAINABLE_SKINS.filter(
       (s) =>
         s.price >= (def.minPrice ?? 0) &&
         s.price <= (def.maxPrice ?? Infinity) &&
         (!def.categories || def.categories.includes(s.category)) &&
-        (!theme || (theme.test(s.finish) && !s.souvenir && s.rarity !== 'legendary')),
+        (!theme || (theme.test(s.finish) && !s.souvenir && s.rarity !== 'legendary' && s.rarity !== 'mythic')),
     );
     table = buildDropTable(pool, def.price * def.returnRate);
     tables.set(def.id, table);

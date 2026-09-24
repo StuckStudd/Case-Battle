@@ -1,6 +1,6 @@
 import { getCaseTable } from '../data/cases';
 import type { CaseDef } from '../data/cases';
-import { SKINS, getSkin } from '../data/skinData';
+import { OBTAINABLE_SKINS, getSkin } from '../data/skinData';
 import type { AppState, Skin, TradeOffer } from '../types/types';
 import { TRADE_OFFERS } from './config';
 import { rollDrop } from './dropTable';
@@ -210,9 +210,9 @@ export function runJackpot(yourSkins: Skin[], yourValue: number, mode: JackpotMo
 
 /** Skin priced closest to `value` (log distance). */
 function skinNear(value: number): Skin {
-  let best = SKINS[0];
+  let best = OBTAINABLE_SKINS[0];
   let bestDistance = Infinity;
-  for (const skin of SKINS) {
+  for (const skin of OBTAINABLE_SKINS) {
     const d = Math.abs(Math.log(skin.price / value));
     if (d < bestDistance) {
       best = skin;
@@ -257,7 +257,7 @@ export function offerValues(state: AppState, offer: TradeOffer): { give: number;
 /** Most valuable skin not exceeding `value`; the remainder is paid to the balance. */
 export function skinForValue(value: number): Skin | undefined {
   let best: Skin | undefined;
-  for (const skin of SKINS) {
+  for (const skin of OBTAINABLE_SKINS) {
     if (skin.price <= value && (!best || skin.price > best.price)) best = skin;
   }
   return best;

@@ -79,5 +79,5 @@ export function getNetWorth(state: AppState): number {
 }
 
 export function isRareDrop(skin: Skin): boolean {
-  return skin.rarity === 'rare' || skin.rarity === 'contraband' || skin.rarity === 'legendary';
+  return skin.rarity === 'rare' || skin.rarity === 'contraband' || skin.rarity === 'legendary' || skin.rarity === 'mythic';
 }

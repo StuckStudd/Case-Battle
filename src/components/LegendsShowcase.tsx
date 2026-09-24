@@ -1,4 +1,4 @@
-import { Check, Crown } from 'lucide-react';
+import { Check, Crown, Lock } from 'lucide-react';
 import { useMemo } from 'react';
 import { BASE_SKINS } from '../data/skinData';
 import { useT } from '../i18n';
@@ -7,12 +7,14 @@ import type { Skin } from '../types/types';
 import { formatMoney } from '../utils/format';
 import { cx, rarityStyle } from '../utils/ui';
 import { SkinImage } from './SkinImage';
+import { useToast } from './Toast';
 
-const LEGENDARY = BASE_SKINS.filter((s) => s.rarity === 'legendary').sort((a, b) => a.price - b.price);
+const LEGENDARY = BASE_SKINS.filter((s) => s.rarity === 'legendary' || s.rarity === 'mythic').sort((a, b) => a.price - b.price);
 
 /** Endgame goals: every legendary item, what it costs and whether you own it. */
 export function LegendsShowcase({ onSelect }: { onSelect: (skin: Skin) => void }) {
   const t = useT();
+  const toast = useToast();
   const { state } = useStore();
   const owned = useMemo(() => new Set(state.inventory.map((i) => i.skinId)), [state.inventory]);
   const ownedCount = LEGENDARY.filter((s) => owned.has(s.id)).length;
@@ -39,18 +41,28 @@ export function LegendsShowcase({ onSelect }: { onSelect: (skin: Skin) => void }
               type="button"
               title={skin.name}
               style={rarityStyle(skin.rarity)}
-              onClick={() => onSelect(skin)}
-              className={cx('rarity-card relative w-40 shrink-0 p-2 text-left transition hover:-translate-y-0.5', have && 'ring-2 ring-emerald-400/60')}
+              onClick={() => (skin.adminOnly ? toast({ type: 'info', title: t('legends.adminOnly') }) : onSelect(skin))}
+              className={cx(
+                'rarity-card relative w-40 shrink-0 p-2 text-left transition hover:-translate-y-0.5',
+                have && 'ring-2 ring-emerald-400/60',
+                skin.rarity === 'mythic' && 'shadow-[0_0_24px_-6px_rgba(45,226,255,0.7)]',
+                skin.adminOnly && 'ring-2 ring-cyan-300/70',
+              )}
             >
               {have && (
                 <span className="absolute right-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-md bg-emerald-500 px-1.5 py-0.5 text-[10px] font-bold text-black">
                   <Check size={10} strokeWidth={3} /> {t('legends.owned')}
                 </span>
               )}
+              {skin.adminOnly && !have && (
+                <span className="absolute left-1.5 top-1.5 z-10 inline-flex items-center gap-1 rounded-md bg-cyan-400 px-1.5 py-0.5 text-[10px] font-bold text-black">
+                  <Lock size={10} strokeWidth={3} /> {t('legends.unique')}
+                </span>
+              )}
               <SkinImage skin={skin} className="h-16 w-full" />
               <div className="truncate text-[10px] text-slate-400">{skin.weapon}</div>
               <div className="line-clamp-2 min-h-8 text-xs font-semibold leading-4 text-white">{skin.finish}</div>
-              <div className="mt-1 font-display text-sm font-bold tabular-nums text-fuchsia-200">{formatMoney(skin.price)}</div>
+              <div className={cx('mt-1 font-display text-sm font-bold tabular-nums', skin.rarity === 'mythic' ? 'text-cyan-200' : 'text-fuchsia-200')}>{formatMoney(skin.price)}</div>
               <div className="rarity-bar absolute inset-x-0 bottom-0 h-0.5" />
             </button>
           );

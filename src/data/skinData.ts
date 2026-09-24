@@ -1,7 +1,7 @@
 import type { Exterior, Skin } from '../types/types';
 import { exteriorFromFloat, exteriorShort } from '../utils/exterior';
 import { CATALOG, STEAM_CDN, type CatalogRow } from './catalog';
-import { LEGENDS, LEGENDS_COLLECTION, PROTOTYPES_COLLECTION } from './legends';
+import { LEGENDS, LEGENDS_COLLECTION, MYTHIC_COLLECTION, PROTOTYPES_COLLECTION, UNIQUE_COLLECTION } from './legends';
 import { MARKET_HOUR, factorHistory, marketFactor, setEventCollections } from './market';
 import { RARITIES } from './rarities';
 
@@ -144,23 +144,28 @@ const LEGEND_SKINS: Skin[] = LEGENDS.flatMap((def) => {
     baseId: def.id,
     name: displayName({ ...base, finish }, def.statTrak ? 'StatTrak™ ' : ''),
     finish,
-    rarity: 'legendary',
+    rarity: def.mythic ? 'mythic' : 'legendary',
     price: def.price,
-    collection: def.prototype ? PROTOTYPES_COLLECTION : LEGENDS_COLLECTION,
+    collection: def.adminOnly ? UNIQUE_COLLECTION : def.mythic ? MYTHIC_COLLECTION : def.prototype ? PROTOTYPES_COLLECTION : LEGENDS_COLLECTION,
     float: def.float,
     exterior: exteriorFromFloat(def.float),
-    colors: [RARITIES.legendary.color, '#1b1d22'],
+    colors: [RARITIES[def.mythic ? 'mythic' : 'legendary'].color, '#1b1d22'],
     statTrak: !!def.statTrak,
     souvenir: undefined,
+    adminOnly: def.adminOnly || undefined,
   };
   const { now, change } = market(skin);
-  return [{ ...skin, price: round2(def.price * now), priceChange: change }];
+  // The unique item keeps a fixed price; everything else follows the market.
+  return [def.adminOnly ? skin : { ...skin, price: round2(def.price * now), priceChange: change }];
 });
 
 /** Every variant plus legendary items. Used for upgrades, cases, contracts and inventory lookups. */
 export const SKINS: Skin[] = [...REGULAR, ...LEGEND_SKINS];
 
 export const SKIN_MAP: ReadonlyMap<string, Skin> = new Map(SKINS.map((s) => [s.id, s]));
+
+/** Everything a player can buy, drop, win or upgrade into (the admin-only unique item is left out). */
+export const OBTAINABLE_SKINS: Skin[] = SKINS.filter((s) => !s.adminOnly);
 
 /** One entry per skin (its default wear, no StatTrak) for catalog listings like the Shop. */
 export const BASE_SKINS: Skin[] = [...BASE_LIST.map(({ skin }) => SKIN_MAP.get(skin.id) ?? skin), ...LEGEND_SKINS];

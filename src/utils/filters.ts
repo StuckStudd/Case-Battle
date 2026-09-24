@@ -72,7 +72,7 @@ export function matchesQuickFilter(skin: Skin, quick: QuickFilter): boolean {
     case 'covert':
       return skin.rarity === 'covert';
     case 'rare':
-      return skin.rarity === 'rare' || skin.rarity === 'contraband' || skin.rarity === 'legendary';
+      return skin.rarity === 'rare' || skin.rarity === 'contraband' || skin.rarity === 'legendary' || skin.rarity === 'mythic';
   }
 }
 

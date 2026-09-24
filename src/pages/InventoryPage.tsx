@@ -1,6 +1,7 @@
-import { ArrowLeftRight, ArrowUpCircle, Backpack, Check, Coins, RefreshCw, ShoppingBag, Sticker, X } from 'lucide-react';
+import { ArrowLeftRight, ArrowUpCircle, Backpack, Check, Coins, Eye, RefreshCw, ShoppingBag, Sticker, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { EmptyState, PageHeader } from '../components/common';
+import { InspectModal } from '../components/InspectModal';
 import { Inventory } from '../components/Inventory';
 import { ConfirmModal, Modal } from '../components/Modal';
 import { SkinImage } from '../components/SkinImage';
@@ -16,7 +17,7 @@ import type { InventoryItem, Page } from '../types/types';
 import { offerValues } from '../utils/botEngine';
 import { MAX_STICKERS_PER_ITEM, SELL_RATE } from '../utils/config';
 import { formatDateTime, formatMoney, roundMoney } from '../utils/format';
-import { SPECIAL_MULTIPLIER, itemValue } from '../utils/itemValue';
+import { SPECIAL_MULTIPLIER, itemFloat, itemValue } from '../utils/itemValue';
 import { getInventoryValue } from '../utils/stats';
 import { cx, rarityStyle } from '../utils/ui';
 
@@ -35,6 +36,7 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
   const [tab, setTab] = useState<Tab>('skins');
   const [openUid, setOpenUid] = useState<string | null>(null);
   const [confirmSell, setConfirmSell] = useState(false);
+  const [inspecting, setInspecting] = useState(false);
 
   // Resolve from live state so a removed item closes the modal instead of showing stale data.
   const openItem: InventoryItem | undefined = state.inventory.find((i) => i.uid === openUid);
@@ -43,6 +45,7 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
   const closeDetails = () => {
     setOpenUid(null);
     setConfirmSell(false);
+    setInspecting(false);
   };
 
   // Keep a fresh set of trade offers while the trades tab is open.
@@ -216,7 +219,7 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
         </div>
       )}
 
-      <Modal open={!!openItem && !!openSkin && !confirmSell} onClose={closeDetails} size="md">
+      <Modal open={!!openItem && !!openSkin && !confirmSell && !inspecting} onClose={closeDetails} size="md">
         {openItem && openSkin && (
           <div style={rarityStyle(openSkin.rarity)}>
             <div className="rarity-card relative mb-5 h-44 p-4">
@@ -235,7 +238,7 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
               {openSkin.statTrak && <span className="mr-1 font-semibold text-orange-400">StatTrak™</span>}
               {openSkin.weapon}
             </div>
-            <h2 className="font-display text-2xl font-bold text-white">{openSkin.finish}</h2>
+            <h2 className="font-display text-2xl font-bold text-white">{openItem.nameTag ? `«${openItem.nameTag}»` : openSkin.finish}</h2>
             <div className="rarity-text text-xs font-bold uppercase tracking-wider">{RARITIES[openSkin.rarity].label}</div>
             {openItem.special && (
               <div className="mt-2 inline-flex rounded-lg bg-gradient-to-r from-fuchsia-500/20 to-sky-400/20 px-2.5 py-1 text-xs font-semibold text-fuchsia-200">
@@ -247,7 +250,8 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
               {[
                 [t('inventory.price'), formatMoney(openValue)],
                 [t('inventory.exterior'), `${openSkin.wearless ? '—' : openSkin.exterior}${openSkin.statTrak ? ' · StatTrak™' : ''}${openSkin.souvenir ? ' · Souvenir' : ''}`],
-                [t('inventory.float'), openSkin.wearless ? '—' : (openItem.float ?? openSkin.float).toFixed(openItem.float ? 5 : 6)],
+                [t('inventory.float'), openSkin.wearless ? '—' : itemFloat(openItem, openSkin).toFixed(6)],
+                ...(openSkin.statTrak ? [[t('inspect.kills'), String(openItem.kills ?? 0)]] : []),
                 [t('inventory.weapon'), openSkin.weapon],
                 [t('inventory.collection'), openSkin.collection],
                 [t('inventory.acquired'), formatDateTime(openItem.acquiredAt)],
@@ -292,7 +296,11 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
               )}
             </div>
 
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+            <button type="button" className="btn btn-ghost mt-4 h-11 w-full" onClick={() => setInspecting(true)}>
+              <Eye size={17} /> {t('inspect.open')}
+            </button>
+
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
               <button
                 type="button"
                 className="btn btn-primary h-12"
@@ -310,6 +318,8 @@ export function InventoryPage({ onUseForUpgrade, onNavigate }: InventoryPageProp
           </div>
         )}
       </Modal>
+
+      {inspecting && <InspectModal item={openItem ?? null} skin={openSkin} onClose={() => setInspecting(false)} />}
 
       <ConfirmModal
         open={confirmSell && !!openSkin}

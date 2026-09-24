@@ -7,7 +7,7 @@ import { PageHeader } from '../components/common';
 import { Pagination, usePagination } from '../components/Pagination';
 import { CAPSULES } from '../data/capsules';
 import type { CapsuleDef } from '../data/capsules';
-import { CASES } from '../data/cases';
+import { CASES, isCaseAvailable } from '../data/cases';
 import type { CaseDef } from '../data/cases';
 import { useT } from '../i18n';
 import type { TKey } from '../i18n';
@@ -59,19 +59,20 @@ function BoxCard({ name, image, price, keys, lockedLevel, highRoller, onClick }:
   );
 }
 
-const SECTION_PAGE_SIZE: Record<CaseDef['kind'], number> = { premium: 100, official: 100, souvenir: 20 };
+const SECTION_PAGE_SIZE: Record<CaseDef['kind'], number> = { premium: 100, event: 100, official: 100, souvenir: 20 };
 
 /** One group of cases; the long souvenir package list gets search and pages. */
 function CaseSection({ kind, level, keys, onSelect }: { kind: CaseDef['kind']; level: number; keys: Record<string, number>; onSelect: (def: CaseDef) => void }) {
   const t = useT();
   const [query, setQuery] = useState('');
-  const all = useMemo(() => CASES.filter((def) => def.kind === kind), [kind]);
+  const all = useMemo(() => CASES.filter((def) => def.kind === kind && isCaseAvailable(def)), [kind]);
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q ? all.filter((def) => def.name.toLowerCase().includes(q)) : all;
   }, [all, query]);
   const { page, pageCount, pageItems, setPage } = usePagination(visible, SECTION_PAGE_SIZE[kind]);
   const searchable = all.length > SECTION_PAGE_SIZE[kind];
+  if (all.length === 0) return null;
 
   return (
     <section>
@@ -145,7 +146,7 @@ export function CasesPage({ onUpgradeItem }: { onUpgradeItem: (uid: string) => v
 
       {tab === 'cases' && (
         <div className="space-y-8">
-          {(['premium', 'official', 'souvenir'] as const).map((kind) => (
+          {(['event', 'premium', 'official', 'souvenir'] as const).map((kind) => (
             <CaseSection key={kind} kind={kind} level={level} keys={state.keys} onSelect={setSelectedCase} />
           ))}
         </div>

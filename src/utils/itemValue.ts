@@ -1,4 +1,4 @@
-import { getSkin } from '../data/skinData';
+import { getFloatRange, getSkin } from '../data/skinData';
 import { getSticker } from '../data/stickers';
 import type { InventoryItem, Skin, SpecialPattern } from '../types/types';
 import { roundMoney } from './format';
@@ -18,8 +18,46 @@ export function itemValue(item: InventoryItem): number {
   const skin = getSkin(item.skinId);
   if (!skin) return 0;
   const base = skin.price * (item.special ? SPECIAL_MULTIPLIER[item.special] : 1);
-  const stickers = (item.stickers ?? []).reduce((sum, id) => sum + (getSticker(id)?.price ?? 0), 0);
+  // Scraped stickers are worth less: full price when new, a quarter at the last scrape.
+  const stickers = (item.stickers ?? []).reduce((sum, id, i) => sum + (getSticker(id)?.price ?? 0) * (1 - (item.stickerWear?.[i] ?? 0)), 0);
   return roundMoney(base + stickers);
+}
+
+function hash01(value: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    h ^= value.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  return (h >>> 0) / 4294967296;
+}
+
+const WEAR_BOUNDS: Record<Skin['exterior'], [number, number]> = {
+  'Factory New': [0, 0.07],
+  'Minimal Wear': [0.07, 0.15],
+  'Field-Tested': [0.15, 0.38],
+  'Well-Worn': [0.38, 0.45],
+  'Battle-Scarred': [0.45, 1],
+};
+
+/** The exact float of this copy: a stored one, or a stable value inside its wear and the skin's float range. */
+export function itemFloat(item: InventoryItem, skin: Skin): number {
+  if (item.float !== undefined) return item.float;
+  if (skin.wearless) return 0;
+  const [min, max] = getFloatRange(skin.baseId);
+  const [lo, hi] = WEAR_BOUNDS[skin.exterior];
+  const from = Math.max(lo, min);
+  const to = Math.min(hi, max);
+  if (!(to > from)) return skin.float;
+  return Math.round((from + hash01(`${item.uid}:float`) * (to - from)) * 1e6) / 1e6;
+}
+
+/** Paint seed (pattern index 0–999) of this copy. */
+export function itemPattern(item: InventoryItem): number {
+  return Math.floor(hash01(`${item.uid}:seed`) * 1000);
 }
 
 /** True when an item carries extras (stickers or a rare pattern) on top of the plain skin. */

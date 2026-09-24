@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { EmptyState, PageHeader } from '../components/common';
 import { ItemFilters } from '../components/ItemFilters';
 import { LegendsShowcase } from '../components/LegendsShowcase';
+import { FlashDeal } from '../components/FlashDeal';
 import { MarketBanner } from '../components/MarketBanner';
 import { Pagination, usePagination } from '../components/Pagination';
 import { Modal } from '../components/Modal';
@@ -232,6 +233,7 @@ export function ShopPage({ onFirstPurchase, onUseForUpgrade }: ShopPageProps) {
       )}
 
       <MarketBanner />
+      <FlashDeal />
       <LegendsShowcase onSelect={setBuying} />
 
       <div className="mb-5">

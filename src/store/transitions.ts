@@ -1,12 +1,13 @@
 import { getCapsule, getCapsuleTable } from '../data/capsules';
-import { getCase, getCaseTable } from '../data/cases';
+import { getCase, getCaseTable, isCaseAvailable } from '../data/cases';
+import { FLASH_DEAL_DISCOUNT, flashDealSkin, localDay, xpMultiplier } from '../data/events';
 import { COLLECTIONS, ownedBases } from '../data/collections';
 import { dailyQuests, weekOf, weeklyQuests } from '../data/quests';
 import { FRAMES, seasonReward } from '../data/season';
 import type { SeasonReward } from '../data/season';
 import { PROMO_CODES, WHEEL_SEGMENTS, prestigeFrame, prestigeRequirement, prestigeStartBalance } from '../data/extras';
 import type { Prize, WheelSegment } from '../data/extras';
-import { SKINS, getSkin, isValidSkin, isWeaponSkin } from '../data/skinData';
+import { BASE_SKINS, SKINS, getSkin, isValidSkin, isWeaponSkin } from '../data/skinData';
 import { getSticker } from '../data/stickers';
 import type {
   AppState,
@@ -15,6 +16,8 @@ import type {
   HiloGame,
   HistoryEntry,
   InventoryItem,
+  MatchBet,
+  PickemState,
   ItemOrigin,
   LuckState,
   MinesGame,
@@ -28,11 +31,15 @@ import type {
 import { generateTradeOffers, runBattle, runJackpot, skinForValue } from '../utils/botEngine';
 import type { BattleResult, JackpotMode, JackpotResult } from '../utils/botEngine';
 import { rollFreeCase } from '../utils/caseEngine';
+import { PICKEM_PERFECT_KEY, PICKEM_REWARDS, matchSlot, matchesForSlot, pickemTeams, playPickem, roundSequence, validPicks } from '../utils/matchEngine';
 import {
   FREE_CASE_BALANCE_THRESHOLD,
   HILO_MAX_STEPS,
   HISTORY_LIMIT,
   MAX_STICKERS_PER_ITEM,
+  NAME_TAG_MAX_LENGTH,
+  NAME_TAG_PRICE,
+  STICKER_SCRAPE_STEP,
   MINES_GRID,
   NICKNAME_MAX_LENGTH,
   SEASON_DAYS,
@@ -155,6 +162,9 @@ export function createInitialState(now = Date.now()): AppState {
     gameStats: {},
     ledger: [],
     adminLuck: { multiplier: 1, scopes: [...LUCK_SCOPES] },
+    flashDealDay: null,
+    pendingMatch: null,
+    pickem: null,
   };
 }
 
@@ -170,7 +180,7 @@ function bump(state: AppState, patch: Partial<Record<keyof UserStats, number>>):
 
 /** Adds XP and wager totals for any bet-like action. */
 function withWager(state: AppState, amount: number): AppState {
-  return bump({ ...state, xp: state.xp + xpForWager(amount) }, { totalWagered: amount });
+  return bump({ ...state, xp: state.xp + Math.round(xpForWager(amount) * xpMultiplier()) }, { totalWagered: amount });
 }
 
 function plainItem(skin: Skin, origin: ItemOrigin, now: number): InventoryItem {
@@ -384,6 +394,7 @@ function payForBox(state: AppState, id: string, price: number): Transition<boole
 export function openPaidCase(state: AppState, caseId: string, now = Date.now()): Transition<InventoryItem> {
   const def = getCase(caseId);
   if (!def) return fail('caseUnknown');
+  if (!isCaseAvailable(def)) return fail('eventOver');
   const hasKey = (state.keys[caseId] ?? 0) > 0;
   if (!hasKey && levelFromXp(state.xp) < def.minLevel) return fail('caseLocked');
   const paid = payForBox(state, caseId, def.price);
@@ -410,7 +421,8 @@ export function applySticker(state: AppState, itemUid: string, stickerUid: strin
   if (!item) return fail('itemNotFound');
   if (!sticker || !getSticker(sticker.stickerId)) return fail('stickerMissing');
   if ((item.stickers?.length ?? 0) >= MAX_STICKERS_PER_ITEM) return fail('stickerSlotsFull');
-  const updated: InventoryItem = { ...item, stickers: [...(item.stickers ?? []), sticker.stickerId] };
+  const wear = item.stickerWear ?? (item.stickers ?? []).map(() => 0);
+  const updated: InventoryItem = { ...item, stickers: [...(item.stickers ?? []), sticker.stickerId], stickerWear: [...wear, 0] };
   return {
     ok: true,
     value: null,
@@ -1083,6 +1095,122 @@ export function doPrestige(state: AppState, now = Date.now()): Transition<number
   };
 }
 
+// ---------------------------------------------------------------- flash deal
+
+/** Buys today's discounted skin; one purchase per local day. */
+export function buyFlashDeal(state: AppState, now = Date.now()): Transition<InventoryItem> {
+  const today = localDay(new Date(now));
+  if (state.flashDealDay === today) return fail('flashDealUsed');
+  const skin = flashDealSkin(BASE_SKINS, new Date(now));
+  if (!skin) return fail('itemUnavailable');
+  const price = roundMoney(skin.price * (1 - FLASH_DEAL_DISCOUNT));
+  if (state.balance < price) return fail('insufficientBalance');
+  const item = plainItem(skin, 'shop', now);
+  return {
+    ok: true,
+    value: item,
+    state: bump(
+      { ...state, balance: roundMoney(state.balance - price), inventory: [item, ...state.inventory], flashDealDay: today },
+      { itemsBought: 1, totalSpent: price },
+    ),
+  };
+}
+
+// ---------------------------------------------------------------- match betting and pick'em
+
+/** Bets on one of the open matches. The winner is decided now; the payout waits for the match animation. */
+export function placeMatchBet(state: AppState, matchId: string, pick: 'a' | 'b', bet: number, now = Date.now()): Transition<MatchBet> {
+  if (state.pendingMatch) return fail('matchInProgress');
+  const match = matchesForSlot(matchSlot(now)).find((m) => m.id === matchId);
+  if (!match || (pick !== 'a' && pick !== 'b')) return fail('matchClosed');
+  const amount = roundMoney(bet);
+  const error = validBet(state, amount);
+  if (error) return fail(error);
+  const winner = bestOf(luckFor(state, 'games'), () => (secureRandom() < match.pA ? 'a' : 'b') as 'a' | 'b', (w) => (w === pick ? 1 : 0));
+  const odds = pick === 'a' ? match.oddsA : match.oddsB;
+  const betState: MatchBet = {
+    id: createId('match'),
+    matchId,
+    a: match.a,
+    b: match.b,
+    map: match.map,
+    pick,
+    bet: amount,
+    odds,
+    winner,
+    rounds: roundSequence(winner, winner === 'a' ? match.pA : 1 - match.pA),
+    payout: winner === pick ? roundMoney(amount * odds) : 0,
+  };
+  return { ok: true, value: betState, state: { ...withWager(state, amount), balance: roundMoney(state.balance - amount), pendingMatch: betState } };
+}
+
+/** Pays out a finished match (also used on load for a match interrupted by a reload). */
+export function settleMatch(state: AppState): AppState {
+  if (!state.pendingMatch) return state;
+  return { ...state, balance: roundMoney(state.balance + state.pendingMatch.payout), pendingMatch: null };
+}
+
+/** Locks today's bracket picks; the tournament is played right away and the reward paid. */
+export function lockPickem(state: AppState, picks: string[], now = Date.now()): Transition<PickemState> {
+  const day = localDay(new Date(now));
+  if (state.pickem?.day === day) return fail('pickemLocked');
+  const teams = pickemTeams(day);
+  if (!validPicks(teams, picks)) return fail('pickemInvalid');
+  const results = playPickem(teams, day);
+  const correct = results.filter((w, i) => w === picks[i]).length;
+  const reward = PICKEM_REWARDS[correct];
+  const pickem: PickemState = { day, picks, results, correct, reward };
+  let next: AppState = { ...state, pickem, balance: roundMoney(state.balance + reward) };
+  if (correct === 7) next = { ...next, keys: { ...next.keys, [PICKEM_PERFECT_KEY]: (next.keys[PICKEM_PERFECT_KEY] ?? 0) + 1 } };
+  return { ok: true, value: pickem, state: next };
+}
+
+// ---------------------------------------------------------------- name tags and sticker scraping
+
+/** Renames an item for NAME_TAG_PRICE; an empty name removes the tag for free. */
+export function setNameTag(state: AppState, uid: string, name: string): Transition<null> {
+  const item = state.inventory.find((i) => i.uid === uid);
+  if (!item) return fail('itemNotFound');
+  const clean = name.replace(/\s+/g, ' ').trim();
+  if (clean.length > NAME_TAG_MAX_LENGTH) return fail('nameTagInvalid');
+  const cost = clean ? NAME_TAG_PRICE : 0;
+  if (state.balance < cost) return fail('insufficientBalance');
+  const updated: InventoryItem = { ...item };
+  if (clean) updated.nameTag = clean;
+  else delete updated.nameTag;
+  return {
+    ok: true,
+    value: null,
+    state: { ...state, balance: roundMoney(state.balance - cost), inventory: state.inventory.map((i) => (i.uid === uid ? updated : i)) },
+  };
+}
+
+/** Scrapes one sticker a bit; the fourth scrape removes it. Returns whether it was removed. */
+export function scrapeSticker(state: AppState, uid: string, slot: number): Transition<{ removed: boolean; wear: number }> {
+  const item = state.inventory.find((i) => i.uid === uid);
+  if (!item || !item.stickers || slot < 0 || slot >= item.stickers.length) return fail('noSticker');
+  const wear = item.stickerWear ?? item.stickers.map(() => 0);
+  const next = Math.round((wear[slot] + STICKER_SCRAPE_STEP) * 100) / 100;
+  const removed = next >= 1;
+  const stickers = removed ? item.stickers.filter((_, i) => i !== slot) : item.stickers;
+  const stickerWear = removed ? wear.filter((_, i) => i !== slot) : wear.map((w, i) => (i === slot ? next : w));
+  const updated: InventoryItem = { ...item, stickers, stickerWear };
+  if (stickers.length === 0) {
+    delete updated.stickers;
+    delete updated.stickerWear;
+  }
+  return { ok: true, value: { removed, wear: removed ? 1 : next }, state: { ...state, inventory: state.inventory.map((i) => (i.uid === uid ? updated : i)) } };
+}
+
+/** Every round played gives a random StatTrak™ item in the inventory a few kills. */
+function addStatTrakKills(state: AppState): AppState {
+  const tracked = state.inventory.filter((i) => getSkin(i.skinId)?.statTrak);
+  if (tracked.length === 0) return state;
+  const target = pickRandom(tracked);
+  const kills = (target.kills ?? 0) + 1 + Math.floor(secureRandom() * 5);
+  return { ...state, inventory: state.inventory.map((i) => (i.uid === target.uid ? { ...i, kills } : i)) };
+}
+
 // ---------------------------------------------------------------- per-game statistics
 
 export type GameId =
@@ -1100,7 +1228,8 @@ export type GameId =
   | 'plinko'
   | 'coinflip'
   | 'towers'
-  | 'hilo';
+  | 'hilo'
+  | 'matches';
 
 /** Everything the player owns, including winnings still held for an animation. */
 function wealth(state: AppState): number {
@@ -1113,8 +1242,9 @@ export function trackGame(prev: AppState, next: AppState, game: GameId, start: b
   const wagered = Math.max(0, next.stats.totalWagered - prev.stats.totalWagered);
   const profit = wealth(next) - wealth(prev);
   const current = next.gameStats[game] ?? { played: 0, wagered: 0, profit: 0 };
+  const counted = start ? addStatTrakKills(next) : next;
   return {
-    ...next,
+    ...counted,
     gameStats: {
       ...next.gameStats,
       [game]: {

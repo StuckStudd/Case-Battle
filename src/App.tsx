@@ -3,6 +3,7 @@ import { BottomNav } from './components/BottomNav';
 import { DailyModal } from './components/DailyModal';
 import { FreeCaseModal } from './components/FreeCaseModal';
 import { Header } from './components/Header';
+import { EventBar } from './components/EventBar';
 import { LiveFeed } from './components/LiveFeed';
 import { SplashScreen, WelcomeModal } from './components/Onboarding';
 import { Sidebar } from './components/Sidebar';
@@ -30,6 +31,7 @@ const CollectionsPage = lazy(() => import('./pages/CollectionsPage').then((m) =>
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage').then((m) => ({ default: m.LeaderboardPage })));
 const HistoryPage = lazy(() => import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const MatchesPage = lazy(() => import('./pages/MatchesPage').then((m) => ({ default: m.MatchesPage })));
 const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
@@ -165,6 +167,8 @@ function Shell() {
         return <ProfilePage />;
       case 'settings':
         return <SettingsPage onReset={() => setSelection(EMPTY_SELECTION)} />;
+      case 'matches':
+        return <MatchesPage />;
       case 'admin':
         return <AdminPage />;
     }
@@ -178,6 +182,7 @@ function Shell() {
       <div className="mx-auto flex max-w-[1600px]">
         <Sidebar page={page} onNavigate={navigate} />
         <main key={page} className="anim-fade-up min-w-0 flex-1 px-3 pb-28 pt-5 sm:px-5 lg:px-8 lg:pb-12 lg:pt-7">
+          {page !== 'admin' && <EventBar onNavigate={navigate} />}
           <Suspense fallback={<PageSkeleton />}>{content}</Suspense>
         </main>
       </div>

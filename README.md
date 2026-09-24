@@ -12,10 +12,11 @@ A browser simulator of CS2 skin upgrades, cases, trade-up contracts and mini-gam
 - **2,376 items:** every CS2 weapon skin, knife and glove finish, every Doppler and Gamma Doppler phase (Ruby, Sapphire, Black Pearl, Emerald, Phase 1–4), vanilla knives, 63 agents, 78 charms and 89 music kits, with Steam artwork. Real Skinport prices per wear (FN–BS), StatTrak™ and Souvenir, from $0.03 to $35,000.
 - **Live market:** prices move every hour, every item has a 7-day price chart, and each day brings a market event (knife rally, glove boom, crash, discontinued collection…).
 - **Legendary items:** 31 one-of-a-kind items from $120K to $1B, such as Karambit «Blue Gem #387», StatTrak Howl with 4× iBUYPOWER Holo, and simulator prototypes.
-- **205 cases:**
+- **Up to 208 cases:**
   - 42 official CS2 cases with their real contents and odds (Mil-Spec 79.92% … ★ 0.26%, StatTrak 10%);
   - 150 major souvenir packages that drop Souvenir skins;
-  - 13 high-roller cases from $1 to $100,000,000.
+  - 13 high-roller cases from $1 to $100,000,000;
+  - seasonal event cases (autumn, Halloween, winter) with themed skins, available only while the event runs.
 - **Case battles** against bots, including on the most expensive cases.
 - **Mini-games:**
   - Jackpot;
@@ -28,6 +29,9 @@ A browser simulator of CS2 skin upgrades, cases, trade-up contracts and mini-gam
   - Hi-Lo;
   - Plinko;
   - Coinflip.
+- **Matches and Pick'em:** bet on simulated CS matches (16 teams, odds from ratings and form, live round-by-round scoreboard) and predict a free daily 8-team Pick'em bracket.
+- **Events:** double XP on weekends, a daily deal (−15%, one purchase per day) and seasonal cases.
+- **Inspect:** zoom and tilt any item, see its exact float and pattern, StatTrak™ kill counter, name tags and sticker scraping.
 - **Trade-up contracts, bot trades and stickers.** Stickers come from 4 capsules, including EMS Katowice 2014.
 - **Rare patterns:** Ruby, Sapphire, Black Pearl, Blue Gem, Full Fade and ultra-low float.
 - **Progression:**
@@ -82,7 +86,12 @@ npm run dev        # http://localhost:5173
 | `npm run dev` | Development server |
 | `npm run build` | Type check and build into `dist/` |
 | `npm run preview` | Serve the production build |
+| `npm test` | Unit tests of the game logic (Vitest) |
 | `npm run catalog` | Re-download skins, cases, stickers and current prices |
+
+## Tests
+
+`npm test` checks the game logic: catalog integrity, case returns, upgrade odds, luck, match odds, Pick'em, promo codes, prestige, name tags, stickers, rollbacks and save repair. GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) runs the type check, build and tests on every push.
 
 ## Deployment
 

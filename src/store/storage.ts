@@ -16,6 +16,8 @@ import type {
   ItemOrigin,
   LedgerEntry,
   LuckScope,
+  MatchBet,
+  PickemState,
   MinesGame,
   QuestState,
   SeasonState,
@@ -42,7 +44,7 @@ import { roundMoney } from '../utils/format';
 import { TOWERS_LAYOUT } from '../utils/gamesEngine';
 import { LEDGER_LIMIT } from './ledger';
 import { createId } from '../utils/random';
-import { EMPTY_LUCK, EMPTY_STATS, createInitialState, finishUpgrade, settleBattle, settleCrash, settleJackpot } from './transitions';
+import { EMPTY_LUCK, EMPTY_STATS, createInitialState, finishUpgrade, settleBattle, settleCrash, settleJackpot, settleMatch } from './transitions';
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -110,8 +112,16 @@ function sanitizeInventory(raw: unknown, log: RepairLog): InventoryItem[] {
     seen.add(uid);
     const origin: ItemOrigin = ORIGINS.includes(record.origin as ItemOrigin) ? (record.origin as ItemOrigin) : 'shop';
     const item: InventoryItem = { uid, skinId, acquiredAt: finiteNumber(record.acquiredAt) ?? Date.now(), origin };
-    const stickers = stringArray(record.stickers)?.filter((id) => STICKER_MAP.has(id)).slice(0, 4);
-    if (stickers && stickers.length > 0) item.stickers = stickers;
+    const rawStickers = stringArray(record.stickers) ?? [];
+    const rawWear = Array.isArray(record.stickerWear) ? record.stickerWear : [];
+    const kept = rawStickers.map((id, i) => [id, finiteNumber(rawWear[i]) ?? 0] as const).filter(([id]) => STICKER_MAP.has(id)).slice(0, 4);
+    if (kept.length > 0) {
+      item.stickers = kept.map(([id]) => id);
+      item.stickerWear = kept.map(([, w]) => Math.min(0.75, Math.max(0, w)));
+    }
+    if (typeof record.nameTag === 'string' && record.nameTag.trim()) item.nameTag = record.nameTag.trim().slice(0, 20);
+    const kills = finiteNumber(record.kills);
+    if (kills !== null && kills > 0) item.kills = Math.floor(kills);
     if (SPECIALS.includes(record.special as SpecialPattern)) item.special = record.special as SpecialPattern;
     const float = finiteNumber(record.float);
     if (float !== null && float >= 0 && float <= 1) item.float = float;
@@ -370,6 +380,37 @@ function sanitizeAdminLuck(raw: unknown): AdminLuck {
   return { multiplier: multiplier === null ? 1 : Math.min(MAX_ADMIN_LUCK, Math.max(1, multiplier)), scopes };
 }
 
+function sanitizeMatch(raw: unknown): MatchBet | null {
+  if (!isRecord(raw) || typeof raw.id !== 'string' || typeof raw.a !== 'string' || typeof raw.b !== 'string') return null;
+  const bet = finiteNumber(raw.bet);
+  const odds = finiteNumber(raw.odds);
+  const payout = finiteNumber(raw.payout);
+  const side = (v: unknown): v is 'a' | 'b' => v === 'a' || v === 'b';
+  if (bet === null || odds === null || payout === null || !side(raw.pick) || !side(raw.winner) || !Array.isArray(raw.rounds)) return null;
+  return {
+    id: raw.id,
+    matchId: typeof raw.matchId === 'string' ? raw.matchId : '',
+    a: raw.a,
+    b: raw.b,
+    map: typeof raw.map === 'string' ? raw.map : '',
+    pick: raw.pick,
+    bet,
+    odds,
+    winner: raw.winner,
+    rounds: raw.rounds.filter(side),
+    payout: Math.max(0, payout),
+  };
+}
+
+function sanitizePickem(raw: unknown): PickemState | null {
+  if (!isRecord(raw)) return null;
+  const day = finiteNumber(raw.day);
+  const picks = stringArray(raw.picks);
+  const results = stringArray(raw.results);
+  if (day === null || !picks || !results || picks.length !== 7 || results.length !== 7) return null;
+  return { day, picks, results, correct: Math.max(0, Math.floor(finiteNumber(raw.correct) ?? 0)), reward: Math.max(0, finiteNumber(raw.reward) ?? 0) };
+}
+
 function sanitizeGameStats(raw: unknown): Record<string, GameStat> {
   if (!isRecord(raw)) return {};
   const out: Record<string, GameStat> = {};
@@ -545,6 +586,9 @@ export function sanitizeState(raw: unknown): { state: AppState; repaired: boolea
     gameStats: sanitizeGameStats(raw.gameStats),
     ledger: sanitizeLedger(raw.ledger),
     adminLuck: sanitizeAdminLuck(raw.adminLuck),
+    flashDealDay: finiteNumber(raw.flashDealDay),
+    pendingMatch: sanitizeMatch(raw.pendingMatch),
+    pickem: sanitizePickem(raw.pickem),
   };
 
   // An upgrade interrupted by a reload is settled with its already-decided result.
@@ -557,7 +601,8 @@ export function sanitizeState(raw: unknown): { state: AppState; repaired: boolea
     const settled = settleCrash(state);
     if (settled.ok) state = settled.state;
   }
-  state = settleJackpot(settleBattle(state));
+  // A match interrupted by a reload is paid out with its already-decided result.
+  state = settleMatch(settleJackpot(settleBattle(state)));
   const owned = new Set(state.inventory.map((i) => i.uid));
   state = { ...state, showcase: state.showcase.filter((u) => owned.has(u)) };
 

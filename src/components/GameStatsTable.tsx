@@ -22,6 +22,7 @@ const GAMES: [GameId, TKey][] = [
   ['hilo', 'games.hilo'],
   ['plinko', 'games.plinko'],
   ['coinflip', 'games.coinflip'],
+  ['matches', 'nav.matches'],
 ];
 
 /** Rounds, total staked and net result for every game, tracked since this feature was added. */

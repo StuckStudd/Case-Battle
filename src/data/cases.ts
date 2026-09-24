@@ -1,6 +1,8 @@
 import { buildDropTable } from '../utils/dropTable';
 import type { DropEntry, DropTable } from '../utils/dropTable';
 import type { Exterior, Rarity, Skin, WeaponCategory } from '../types/types';
+import { SEASONAL_EVENTS, isSeasonActive } from './events';
+import type { SeasonalEvent } from './events';
 import { OFFICIAL_CASES } from './officialCases';
 import { SKINS, getFloatRange, getSkin, getVariants } from './skinData';
 
@@ -13,7 +15,7 @@ export interface CaseDef {
    * 'official': real CS2 case with its real contents and odds. 'souvenir': a major's souvenir package.
    * 'premium': simulator case drawing from a price band.
    */
-  kind: 'premium' | 'official' | 'souvenir';
+  kind: 'premium' | 'official' | 'souvenir' | 'event';
   price: number;
   image: string;
   /** Player level required to open. */
@@ -27,6 +29,8 @@ export interface CaseDef {
   /** Official cases: catalog ids of the regular and ★ contents. */
   contents?: { skins: string[]; rare: string[] };
   released?: string;
+  /** Event cases can only be opened while their season runs. */
+  season?: SeasonalEvent['id'];
 }
 
 const RETURN_RATE = 0.9;
@@ -251,7 +255,7 @@ const OFFICIAL: CaseDef[] = OFFICIAL_CASES.map(([id, name, image, released, skin
     id,
     name,
     kind: kind === 'souvenir' ? ('souvenir' as const) : ('official' as const),
-    price: Math.max(0.5, Math.round((table.expectedValue / RETURN_RATE) * 100) / 100),
+    price: Math.max(0.05, Math.round((table.expectedValue / RETURN_RATE) * 100) / 100),
     image: `${STEAM_CDN}${image}`,
     minLevel: 1,
     returnRate: RETURN_RATE,
@@ -262,13 +266,30 @@ const OFFICIAL: CaseDef[] = OFFICIAL_CASES.map(([id, name, image, released, skin
   .filter((def) => (tables.get(def.id)?.entries.length ?? 0) > 0)
   .sort((a, b) => (b.released ?? '').localeCompare(a.released ?? ''));
 
-export const CASES: CaseDef[] = [...PREMIUM_CASES, ...OFFICIAL];
+/** Seasonal cases: themed skins that fit the event, available only while it runs. */
+const EVENT_CASES: CaseDef[] = [
+  { id: 'event-autumn', name: 'Harvest Case', kind: 'event', season: 'autumn', price: 30, minLevel: 1, minPrice: 0.1, maxPrice: 5000, returnRate: RETURN_RATE, image: officialImage('cs-operation-wildfire-case') },
+  { id: 'event-halloween', name: 'Spooky Case', kind: 'event', season: 'halloween', price: 66.6, minLevel: 1, minPrice: 0.1, maxPrice: 6666, returnRate: RETURN_RATE, image: officialImage('cs-dreams-nightmares-case') },
+  { id: 'event-winter', name: 'Frost Case', kind: 'event', season: 'winter', price: 50, minLevel: 1, minPrice: 0.1, maxPrice: 5000, returnRate: RETURN_RATE, image: officialImage('cs-snakebite-case') },
+];
+
+export const CASES: CaseDef[] = [...PREMIUM_CASES, ...EVENT_CASES, ...OFFICIAL];
+
+export function isCaseAvailable(def: CaseDef, now = new Date()): boolean {
+  const season = def.season ? SEASONAL_EVENTS.find((e) => e.id === def.season) : undefined;
+  return !season || isSeasonActive(season, now);
+}
 
 export function getCaseTable(def: CaseDef): DropTable<Skin> {
   let table = tables.get(def.id);
   if (!table) {
+    const theme = def.season ? SEASONAL_EVENTS.find((e) => e.id === def.season)?.theme : undefined;
     const pool = SKINS.filter(
-      (s) => s.price >= (def.minPrice ?? 0) && s.price <= (def.maxPrice ?? Infinity) && (!def.categories || def.categories.includes(s.category)),
+      (s) =>
+        s.price >= (def.minPrice ?? 0) &&
+        s.price <= (def.maxPrice ?? Infinity) &&
+        (!def.categories || def.categories.includes(s.category)) &&
+        (!theme || (theme.test(s.finish) && !s.souvenir && s.rarity !== 'legendary')),
     );
     table = buildDropTable(pool, def.price * def.returnRate);
     tables.set(def.id, table);

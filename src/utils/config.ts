@@ -40,6 +40,11 @@ export const NET_WORTH_HISTORY_LIMIT = 300;
 export const NICKNAME_MAX_LENGTH = 20;
 
 export const MAX_STICKERS_PER_ITEM = 4;
+/** Price of renaming an item, like a name tag in the game. */
+export const NAME_TAG_PRICE = 2;
+export const NAME_TAG_MAX_LENGTH = 20;
+/** Wear added by one sticker scrape; at 1 the sticker is gone. */
+export const STICKER_SCRAPE_STEP = 0.25;
 export const MINES_GRID = 25;
 export const MINES_RETURN = 0.97;
 

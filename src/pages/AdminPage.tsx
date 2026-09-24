@@ -162,6 +162,11 @@ const ACTION_LABELS: Record<string, [en: string, ru: string]> = {
   adminRevertSince: ['Admin: rollback', 'Админ: откат'],
   adminRestoreSnapshot: ['Admin: restore point', 'Админ: точка восстановления'],
   adminSetLuck: ['Admin: luck', 'Админ: удача'],
+  betMatch: ['Match bet', 'Ставка на матч'],
+  finishMatch: ['Match result', 'Итог матча'],
+  lockPickem: ["Pick'em reward", "Награда Pick'em"],
+  buyFlashDeal: ['Deal of the day', 'Скидка дня'],
+  setNameTag: ['Name tag', 'Именной ярлык'],
 };
 
 function useActionLabel() {

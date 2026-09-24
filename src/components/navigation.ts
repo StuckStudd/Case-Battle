@@ -10,6 +10,7 @@ import {
   Trophy,
   Settings,
   ShoppingBag,
+  Swords,
   UserRound,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -27,6 +28,7 @@ export const NAV_ITEMS: NavItem[] = [
   { page: 'cases', label: 'nav.cases', icon: Box },
   { page: 'contracts', label: 'nav.contracts', icon: Repeat2 },
   { page: 'games', label: 'nav.games', icon: Dices },
+  { page: 'matches', label: 'nav.matches', icon: Swords },
   { page: 'inventory', label: 'nav.inventory', icon: Backpack },
   { page: 'shop', label: 'nav.shop', icon: ShoppingBag },
   { page: 'quests', label: 'nav.quests', icon: ListChecks },

@@ -71,6 +71,12 @@ export interface InventoryItem {
   special?: SpecialPattern;
   /** Item-specific float, used by rare low-float drops. */
   float?: number;
+  /** Custom name from a name tag. */
+  nameTag?: string;
+  /** StatTrak™ kill counter. */
+  kills?: number;
+  /** Scrape wear per applied sticker, 0 (new) … 0.75; a sticker scraped past that is removed. */
+  stickerWear?: number[];
 }
 
 export interface StickerItem {
@@ -150,6 +156,30 @@ export interface AdminLuck {
   /** 1 = fair game; 2 = x2 luck, and so on. */
   multiplier: number;
   scopes: LuckScope[];
+}
+
+/** A bet on a simulated match; the payout is held until the match animation ends. */
+export interface MatchBet {
+  id: string;
+  matchId: string;
+  a: string;
+  b: string;
+  map: string;
+  pick: 'a' | 'b';
+  bet: number;
+  odds: number;
+  winner: 'a' | 'b';
+  rounds: ('a' | 'b')[];
+  payout: number;
+}
+
+export interface PickemState {
+  day: number;
+  picks: string[];
+  /** Winners of the 7 bracket slots, set when the picks are locked. */
+  results: string[];
+  correct: number;
+  reward: number;
 }
 
 /** Per-game totals shown in the profile. */
@@ -328,6 +358,11 @@ export interface AppState {
   ledger: LedgerEntry[];
   /** Luck set in the admin panel. */
   adminLuck: AdminLuck;
+  /** Local day the daily flash deal was bought (one per day). */
+  flashDealDay: number | null;
+  pendingMatch: MatchBet | null;
+  /** Today's pick'em once locked. */
+  pickem: PickemState | null;
 }
 
 /** Translatable failure reasons returned by store actions (see i18n "error.*"). */
@@ -384,7 +419,15 @@ export type ErrorCode =
   | 'promoInvalid'
   | 'promoUsed'
   | 'prestigeLocked'
-  | 'prestigeBusy';
+  | 'prestigeBusy'
+  | 'nameTagInvalid'
+  | 'noSticker'
+  | 'eventOver'
+  | 'flashDealUsed'
+  | 'matchInProgress'
+  | 'matchClosed'
+  | 'pickemLocked'
+  | 'pickemInvalid';
 
 export type Page =
   | 'upgrade'
@@ -399,5 +442,6 @@ export type Page =
   | 'collections'
   | 'leaderboard'
   | 'settings'
+  | 'matches'
   /** Hidden page, reachable only at #/admin. */
   | 'admin';

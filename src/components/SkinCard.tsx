@@ -5,7 +5,7 @@ import { getSticker } from '../data/stickers';
 import { useT } from '../i18n';
 import type { TKey } from '../i18n';
 import type { InventoryItem, Skin } from '../types/types';
-import { itemValue } from '../utils/itemValue';
+import { itemFloat, itemValue } from '../utils/itemValue';
 import { wearTag } from '../utils/exterior';
 import { formatMoney } from '../utils/format';
 import { cx, rarityStyle } from '../utils/ui';
@@ -45,7 +45,7 @@ export function SkinCard({
   const t = useT();
   const rarity = RARITIES[skin.rarity];
   const price = item ? itemValue(item) : skin.price;
-  const float = item?.float ?? skin.float;
+  const float = item ? itemFloat(item, skin) : skin.float;
   const interactive = !!onClick && !disabled;
 
   const handleKey = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -131,8 +131,8 @@ export function SkinCard({
             </span>
           )}
         </div>
-        <div className={cx('truncate font-semibold text-white', compact ? 'text-xs' : 'text-sm')} title={skin.name}>
-          {skin.finish}
+        <div className={cx('truncate font-semibold text-white', compact ? 'text-xs' : 'text-sm')} title={item?.nameTag ? `${skin.name} «${item.nameTag}»` : skin.name}>
+          {item?.nameTag ? `«${item.nameTag}»` : skin.finish}
         </div>
         <div className="mt-1 flex items-center justify-between gap-2">
           <span className="rarity-text truncate text-[10px] font-bold uppercase tracking-wide">{rarity.short}</span>

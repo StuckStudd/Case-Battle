@@ -66,6 +66,12 @@ import {
   redeemPromo as redeemPromoTransition,
   doPrestige,
   trackGame,
+  setNameTag as setNameTagTransition,
+  placeMatchBet,
+  settleMatch,
+  lockPickem as lockPickemTransition,
+  buyFlashDeal as buyFlashDealTransition,
+  scrapeSticker as scrapeStickerTransition,
 } from './transitions';
 import type {
   GameId,
@@ -88,7 +94,7 @@ import type {
 } from './transitions';
 import type { JackpotMode } from '../utils/botEngine';
 import type { HiloGuess } from '../utils/gamesEngine';
-import type { HiloGame, LuckScope, TowersDifficulty, TowersGame } from '../types/types';
+import type { HiloGame, LuckScope, MatchBet, PickemState, TowersDifficulty, TowersGame } from '../types/types';
 
 export type ActionResult<T> = { ok: true; value: T } | { ok: false; error: ErrorCode };
 
@@ -109,6 +115,7 @@ export interface StoreValue {
   finishJackpot: () => void;
   claimCollection: (collectionId: string) => ActionResult<number>;
   buy: (skinId: string) => ActionResult<InventoryItem>;
+  buyFlashDeal: () => ActionResult<InventoryItem>;
   sell: (uid: string) => ActionResult<number>;
   startUpgrade: (request: UpgradeRequest) => ActionResult<UpgradeOutcome>;
   resolveUpgrade: () => ActionResult<UpgradeResolution>;
@@ -137,6 +144,11 @@ export interface StoreValue {
   spinWheel: () => ActionResult<WheelSpin>;
   redeemPromo: (code: string) => ActionResult<PrizeResult>;
   prestige: () => ActionResult<number>;
+  betMatch: (matchId: string, pick: 'a' | 'b', bet: number) => ActionResult<MatchBet>;
+  finishMatch: () => ActionResult<null>;
+  lockPickem: (picks: string[]) => ActionResult<PickemState>;
+  setNameTag: (uid: string, name: string) => ActionResult<null>;
+  scrapeSticker: (uid: string, slot: number) => ActionResult<{ removed: boolean; wear: number }>;
   adminGrantMoney: (amount: number) => void;
   adminSetBalance: (amount: number) => void;
   adminGiveItems: (skinId: string, count: number) => void;
@@ -232,6 +244,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       finishJackpot: () => update((s) => settleJackpot(s)),
       claimCollection: (collectionId: string) => run((s) => claimCollectionTransition(s, collectionId)),
       buy: (skinId: string) => run((s) => buySkin(s, skinId)),
+      buyFlashDeal: () => run((s) => buyFlashDealTransition(s)),
       sell: (uid: string) => run((s) => sellItem(s, uid)),
       startUpgrade: (request: UpgradeRequest) => play('upgrade', true, (s) => beginUpgrade(s, request)),
       resolveUpgrade: () => play('upgrade', false, (s) => finishUpgrade(s)),
@@ -260,6 +273,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       spinWheel: () => run((s) => spinWheelTransition(s)),
       redeemPromo: (code: string) => run((s) => redeemPromoTransition(s, code)),
       prestige: () => run((s) => doPrestige(s)),
+      betMatch: (matchId: string, pick: 'a' | 'b', bet: number) => play('matches', true, (s) => placeMatchBet(s, matchId, pick, bet)),
+      finishMatch: () => play('matches', false, (s) => ({ ok: true, value: null, state: settleMatch(s) })),
+      lockPickem: (picks: string[]) => run((s) => lockPickemTransition(s, picks)),
+      setNameTag: (uid: string, name: string) => run((s) => setNameTagTransition(s, uid, name)),
+      scrapeSticker: (uid: string, slot: number) => run((s) => scrapeStickerTransition(s, uid, slot)),
       adminGrantMoney: (amount: number) => update((s) => grantMoney(s, amount)),
       adminSetBalance: (amount: number) => update((s) => setBalance(s, amount)),
       adminGiveItems: (skinId: string, count: number) => update((s) => giveItems(s, skinId, count)),

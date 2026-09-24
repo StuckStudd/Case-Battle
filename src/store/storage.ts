@@ -13,6 +13,7 @@ import type {
   HistoryEntry,
   InventoryItem,
   ItemOrigin,
+  LedgerEntry,
   MinesGame,
   QuestState,
   SeasonState,
@@ -36,6 +37,7 @@ import {
 } from '../utils/config';
 import { roundMoney } from '../utils/format';
 import { TOWERS_LAYOUT } from '../utils/gamesEngine';
+import { LEDGER_LIMIT } from './ledger';
 import { createId } from '../utils/random';
 import { EMPTY_LUCK, EMPTY_STATS, createInitialState, finishUpgrade, settleBattle, settleCrash, settleJackpot } from './transitions';
 
@@ -73,7 +75,7 @@ function getStorage(): Storage | null {
   }
 }
 
-const ORIGINS: ItemOrigin[] = ['shop', 'upgrade', 'case', 'contract', 'battle', 'trade', 'crash', 'jackpot', 'wheel'];
+const ORIGINS: ItemOrigin[] = ['shop', 'upgrade', 'case', 'contract', 'battle', 'trade', 'crash', 'jackpot', 'wheel', 'admin'];
 const SPECIALS: SpecialPattern[] = ['ruby', 'sapphire', 'blackPearl', 'blueGem', 'fullFade', 'lowFloat'];
 
 /** Tracks whether any field had to be dropped or fixed while sanitizing. */
@@ -327,6 +329,36 @@ function sanitizeHilo(raw: unknown): HiloGame | null {
   return { id: raw.id, bet, cards, index, multiplier };
 }
 
+function sanitizeLedger(raw: unknown): LedgerEntry[] {
+  if (!Array.isArray(raw)) return [];
+  const out: LedgerEntry[] = [];
+  for (const e of raw.slice(0, LEDGER_LIMIT)) {
+    if (!isRecord(e) || typeof e.id !== 'string' || typeof e.action !== 'string') continue;
+    const t = finiteNumber(e.t);
+    const before = finiteNumber(e.balanceBefore);
+    const after = finiteNumber(e.balanceAfter);
+    if (t === null || before === null || after === null) continue;
+    const keys: Record<string, number> = {};
+    if (isRecord(e.keys)) for (const [id, n] of Object.entries(e.keys)) if (typeof n === 'number' && Number.isFinite(n)) keys[id] = n;
+    const quiet = { repaired: false };
+    out.push({
+      id: e.id,
+      t,
+      action: e.action.slice(0, 60),
+      balanceBefore: before,
+      balanceAfter: after,
+      itemsIn: sanitizeInventory(e.itemsIn, quiet),
+      itemsOut: sanitizeInventory(e.itemsOut, quiet),
+      stickersIn: sanitizeStickers(e.stickersIn),
+      stickersOut: sanitizeStickers(e.stickersOut),
+      keys,
+      ...(finiteNumber(e.revertedAt) !== null ? { revertedAt: finiteNumber(e.revertedAt)! } : {}),
+      ...(typeof e.note === 'string' ? { note: e.note.slice(0, 120) } : {}),
+    });
+  }
+  return out;
+}
+
 function sanitizeGameStats(raw: unknown): Record<string, GameStat> {
   if (!isRecord(raw)) return {};
   const out: Record<string, GameStat> = {};
@@ -500,6 +532,7 @@ export function sanitizeState(raw: unknown): { state: AppState; repaired: boolea
     wheelLastSpin: Math.max(0, finiteNumber(raw.wheelLastSpin) ?? 0),
     promoClaimed: stringArray(raw.promoClaimed) ?? [],
     gameStats: sanitizeGameStats(raw.gameStats),
+    ledger: sanitizeLedger(raw.ledger),
   };
 
   // An upgrade interrupted by a reload is settled with its already-decided result.

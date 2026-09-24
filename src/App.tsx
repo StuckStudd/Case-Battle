@@ -30,6 +30,7 @@ const CollectionsPage = lazy(() => import('./pages/CollectionsPage').then((m) =>
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage').then((m) => ({ default: m.LeaderboardPage })));
 const HistoryPage = lazy(() => import('./pages/HistoryPage').then((m) => ({ default: m.HistoryPage })));
 const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })));
 
 function PageSkeleton() {
@@ -164,6 +165,8 @@ function Shell() {
         return <ProfilePage />;
       case 'settings':
         return <SettingsPage onReset={() => setSelection(EMPTY_SELECTION)} />;
+      case 'admin':
+        return <AdminPage />;
     }
   })();
 

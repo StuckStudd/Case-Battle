@@ -12,6 +12,9 @@ import type {
   UpgradeOutcome,
 } from '../types/types';
 import type { CoinSide, PlinkoRisk, RouletteColor } from '../utils/gamesEngine';
+import { giveItems, giveKeys, grantMoney, removeItem, resetCooldowns, setBalance } from './admin';
+import { appendLedger, diffLedger, revertEntry, revertSince } from './ledger';
+import type { RevertResult } from './ledger';
 import { settleProgress } from './progress';
 import type { ProgressEvent } from './progress';
 import { clearStoredState, loadState, sanitizeState, saveState } from './storage';
@@ -134,6 +137,15 @@ export interface StoreValue {
   spinWheel: () => ActionResult<WheelSpin>;
   redeemPromo: (code: string) => ActionResult<PrizeResult>;
   prestige: () => ActionResult<number>;
+  adminGrantMoney: (amount: number) => void;
+  adminSetBalance: (amount: number) => void;
+  adminGiveItems: (skinId: string, count: number) => void;
+  adminRemoveItem: (uid: string) => void;
+  adminGiveKeys: (id: string, count: number) => void;
+  adminResetCooldowns: () => void;
+  adminRevert: (entryId: string) => RevertResult | null;
+  adminRevertSince: (entryId: string) => RevertResult | null;
+  adminRestoreSnapshot: (raw: unknown) => void;
   refreshTrades: () => void;
   acceptTrade: (offerId: string) => ActionResult<InventoryItem[]>;
   declineTrade: (offerId: string) => void;
@@ -168,10 +180,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   // Operations read from the ref so rapid consecutive calls always see the latest state.
   const stateRef = useRef(state);
 
+  // Name of the action being run, recorded in the ledger (see `labeled` below).
+  const labelRef = useRef<string | null>(null);
+
   const commit = useCallback((next: AppState) => {
-    const settled = settleProgress(stateRef.current, next);
-    stateRef.current = settled.state;
-    setState(settled.state);
+    const prev = stateRef.current;
+    const now = Date.now();
+    const logged = appendLedger(next, diffLedger(prev, next, labelRef.current ?? 'other', now));
+    const settled = settleProgress(prev, logged);
+    // Level-up and achievement rewards get their own ledger line.
+    const final = appendLedger(settled.state, diffLedger(logged, settled.state, 'progress', now));
+    stateRef.current = final;
+    setState(final);
     if (settled.events.length > 0) setProgressEvents((list) => [...list, ...settled.events]);
   }, []);
 
@@ -239,6 +259,27 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       spinWheel: () => run((s) => spinWheelTransition(s)),
       redeemPromo: (code: string) => run((s) => redeemPromoTransition(s, code)),
       prestige: () => run((s) => doPrestige(s)),
+      adminGrantMoney: (amount: number) => update((s) => grantMoney(s, amount)),
+      adminSetBalance: (amount: number) => update((s) => setBalance(s, amount)),
+      adminGiveItems: (skinId: string, count: number) => update((s) => giveItems(s, skinId, count)),
+      adminRemoveItem: (uid: string) => update((s) => removeItem(s, uid)),
+      adminGiveKeys: (id: string, count: number) => update((s) => giveKeys(s, id, count)),
+      adminResetCooldowns: () => update((s) => resetCooldowns(s)),
+      adminRevert: (entryId: string): RevertResult | null => {
+        const result = revertEntry(stateRef.current, entryId);
+        if (result) commit(result.state);
+        return result;
+      },
+      adminRevertSince: (entryId: string): RevertResult | null => {
+        const result = revertSince(stateRef.current, entryId);
+        if (result) commit(result.state);
+        return result;
+      },
+      /** Restores a restore point but keeps the current ledger, so the audit trail survives. */
+      adminRestoreSnapshot: (raw: unknown) => {
+        const { state: restored } = sanitizeState(raw);
+        commit({ ...restored, ledger: stateRef.current.ledger, isFirstVisit: false });
+      },
       refreshTrades: () => update((s) => refreshTradesTransition(s)),
       acceptTrade: (offerId: string) => run((s) => acceptTradeTransition(s, offerId)),
       declineTrade: (offerId: string) => update((s) => declineTradeTransition(s, offerId)),
@@ -255,8 +296,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       resetAccount: () => {
         const { language, theme, soundPack } = stateRef.current.settings;
         clearStoredState();
+        const previous = stateRef.current;
         const fresh = createInitialState();
-        stateRef.current = { ...fresh, settings: { ...fresh.settings, language, theme, soundPack } };
+        // The ledger survives a reset so the admin panel keeps the full history.
+        const next = { ...fresh, settings: { ...fresh.settings, language, theme, soundPack }, ledger: previous.ledger };
+        stateRef.current = appendLedger(next, diffLedger(previous, next, 'resetAccount'));
         setState(stateRef.current);
         setProgressEvents([]);
       },
@@ -274,6 +318,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [run, update, play],
   );
 
+  // Every action runs with its name as the ledger label; nested calls keep the outer name.
+  const labeled = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(actions).map(([name, fn]) => [
+          name,
+          (...args: unknown[]) => {
+            const outer = labelRef.current;
+            labelRef.current = outer ?? name;
+            try {
+              return (fn as (...a: unknown[]) => unknown)(...args);
+            } finally {
+              labelRef.current = outer;
+            }
+          },
+        ]),
+      ) as typeof actions,
+    [actions],
+  );
+
   const value = useMemo<StoreValue>(
     () => ({
       state,
@@ -282,9 +346,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       progressEvents,
       freeCaseAvailable: isFreeCaseAvailable(state),
       balanceHold,
-      ...actions,
+      ...labeled,
     }),
-    [state, initial.status, persistenceAvailable, progressEvents, balanceHold, actions],
+    [state, initial.status, persistenceAvailable, progressEvents, balanceHold, labeled],
   );
 
   return createElement(StoreContext.Provider, { value }, children);

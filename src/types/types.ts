@@ -56,7 +56,7 @@ export interface Skin {
   priceChange: number;
 }
 
-export type ItemOrigin = 'shop' | 'upgrade' | 'case' | 'contract' | 'battle' | 'trade' | 'crash' | 'jackpot' | 'wheel';
+export type ItemOrigin = 'shop' | 'upgrade' | 'case' | 'contract' | 'battle' | 'trade' | 'crash' | 'jackpot' | 'wheel' | 'admin';
 
 /** Rare patterns and floats that multiply an item's value. */
 export type SpecialPattern = 'ruby' | 'sapphire' | 'blackPearl' | 'blueGem' | 'fullFade' | 'lowFloat';
@@ -77,6 +77,25 @@ export interface StickerItem {
   uid: string;
   stickerId: string;
   acquiredAt: number;
+}
+
+/** One money / item movement, recorded for the admin panel and used to roll it back. */
+export interface LedgerEntry {
+  id: string;
+  t: number;
+  /** Store action that caused it, e.g. "buy", "startUpgrade", "progress" (level-up rewards), "admin:grantMoney". */
+  action: string;
+  balanceBefore: number;
+  balanceAfter: number;
+  itemsIn: InventoryItem[];
+  itemsOut: InventoryItem[];
+  stickersIn: StickerItem[];
+  stickersOut: StickerItem[];
+  /** Case / capsule keys gained (+) or used (-), by id. */
+  keys: Record<string, number>;
+  /** Set when an admin rolled this entry back. */
+  revertedAt?: number;
+  note?: string;
 }
 
 export interface TradeOffer {
@@ -296,6 +315,8 @@ export interface AppState {
   promoClaimed: string[];
   /** Game id -> totals. */
   gameStats: Record<string, GameStat>;
+  /** Newest first, capped (see LEDGER_LIMIT). */
+  ledger: LedgerEntry[];
 }
 
 /** Translatable failure reasons returned by store actions (see i18n "error.*"). */
@@ -366,4 +387,6 @@ export type Page =
   | 'quests'
   | 'collections'
   | 'leaderboard'
-  | 'settings';
+  | 'settings'
+  /** Hidden page, reachable only at #/admin. */
+  | 'admin';

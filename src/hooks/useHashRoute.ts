@@ -14,6 +14,7 @@ const PAGES: readonly Page[] = [
   'history',
   'profile',
   'settings',
+  'admin',
 ];
 
 function parseHash(hash: string): Page {

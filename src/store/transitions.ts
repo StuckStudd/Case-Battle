@@ -152,6 +152,7 @@ export function createInitialState(now = Date.now()): AppState {
     wheelLastSpin: 0,
     promoClaimed: [],
     gameStats: {},
+    ledger: [],
   };
 }
 

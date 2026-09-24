@@ -47,7 +47,8 @@ A browser simulator of CS2 skin upgrades, cases, trade-up contracts and mini-gam
   - 3 color themes;
   - sound packs;
   - save export and import;
-  - installable as an app (PWA) with offline support.
+  - installable as an app (PWA) with offline support;
+  - a password-protected admin panel: full history of every money and item movement, rollbacks, restore points, money / item grants and a luck multiplier.
 
 | Shop & legends | Cases |
 |---|---|

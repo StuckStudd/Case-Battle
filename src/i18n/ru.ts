@@ -555,7 +555,7 @@ export const ru: Record<keyof typeof en, string> = {
 
   // additions: legendary items, official cases, jackpot modes
   'cases.premium': "Премиум и хайроллер",
-  'cases.premiumHint': "Кейсы симулятора от $1 до $1 000 000. Самые дорогие могут выдать легендарные предметы.",
+  'cases.premiumHint': "Кейсы симулятора от $1 до $100 000 000. Самые дорогие могут выдать легендарные предметы.",
   'cases.official': "Официальные кейсы CS2",
   'cases.officialHint': "Реальное содержимое и реальные шансы: Mil-Spec 79,92%, Restricted 15,98%, Classified 3,2%, Covert 0,64%, ★ нож или перчатки 0,26%. StatTrak™ 10%.",
   'games.duel': "Дуэль 1×1",

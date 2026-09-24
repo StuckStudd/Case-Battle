@@ -553,7 +553,7 @@ export const en = {
 
   // additions: legendary items, official cases, jackpot modes
   'cases.premium': "Premium & high roller",
-  'cases.premiumHint': "Simulator cases from $1 to $1,000,000. The most expensive ones can drop legendary items.",
+  'cases.premiumHint': "Simulator cases from $1 to $100,000,000. The most expensive ones can drop legendary items.",
   'cases.official': "Official CS2 cases",
   'cases.officialHint': "Real contents and real odds: Mil-Spec 79.92%, Restricted 15.98%, Classified 3.2%, Covert 0.64%, ★ knife or gloves 0.26%. StatTrak™ 10%.",
   'games.duel': "Duel 1v1",

@@ -156,6 +156,28 @@ const PREMIUM_CASES: CaseDef[] = [
     returnRate: RETURN_RATE,
     image: officialImage('cs-cs20-case'),
   },
+  {
+    id: 'galaxy',
+    name: 'Galaxy Case',
+    kind: 'premium',
+    price: 10_000_000,
+    minLevel: 30,
+    minPrice: 500_000,
+    maxPrice: Infinity,
+    returnRate: RETURN_RATE,
+    image: officialImage('cs-operation-bravo-case'),
+  },
+  {
+    id: 'universe',
+    name: 'Universe Case',
+    kind: 'premium',
+    price: 100_000_000,
+    minLevel: 40,
+    minPrice: 5_000_000,
+    maxPrice: Infinity,
+    returnRate: RETURN_RATE,
+    image: officialImage('cs-winter-offensive-weapon-case'),
+  },
 ];
 
 /** Real CS2 grade ladder: each grade is about 5× rarer than the one below. ★ items are a fixed 0.26%. */

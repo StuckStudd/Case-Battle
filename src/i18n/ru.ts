@@ -148,7 +148,7 @@ export const ru: Record<keyof typeof en, string> = {
 
   // shop
   'shop.title': 'Магазин',
-  'shop.subtitle': 'Покупайте виртуальные скины за баланс симулятора. Цены немного меняются каждый день.',
+  'shop.subtitle': 'Покупайте виртуальные скины за баланс симулятора. Цены меняются каждый час.',
   'shop.affordable': 'Только по карману',
   'shop.stepTitle': 'Шаг 1 — купите первый скин',
   'shop.stepText': 'Совет: дешёвый скин (до $5) позволит сделать несколько апгрейдов. Ваш баланс: {balance}.',
@@ -740,6 +740,12 @@ export const ru: Record<keyof typeof en, string> = {
   'admin.restoreTitle': "Восстановить «{name}»?",
   'admin.restoreText': "Текущие баланс, предметы и прогресс заменятся точкой восстановления. Если они могут понадобиться, сначала сохраните новую точку.",
   'admin.restored': "Точка восстановления загружена",
+
+  // additions: billionaire goals
+  'ach.rich1b.title': 'Миллиардер',
+  'ach.rich1b.desc': 'Капитал $1 000 000 000',
+  'ach.legend10.title': '♛ Зал славы',
+  'ach.legend10.desc': 'Держите 10 разных легендарных предметов одновременно',
 
   // load notices
   'load.corrupted': 'Сохранение повреждено',

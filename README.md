@@ -9,13 +9,13 @@ A browser simulator of CS2 skin upgrades, cases, trade-up contracts and mini-gam
 ## Features
 
 - **Upgrade:** stake several skins plus balance, with x2/x4/x8 and 35/55/75% presets. A small luck bonus kicks in after a losing streak.
-- **2,127 items:** every CS2 weapon skin, knife and glove finish, vanilla knives, 63 agents, 74 charms and 60 music kits, with Steam artwork. Real Skinport prices per wear (FN–BS), StatTrak™ and Souvenir, from $0.03 to $35,000.
+- **2,376 items:** every CS2 weapon skin, knife and glove finish, every Doppler and Gamma Doppler phase (Ruby, Sapphire, Black Pearl, Emerald, Phase 1–4), vanilla knives, 63 agents, 78 charms and 89 music kits, with Steam artwork. Real Skinport prices per wear (FN–BS), StatTrak™ and Souvenir, from $0.03 to $35,000.
 - **Live market:** prices move every hour, every item has a 7-day price chart, and each day brings a market event (knife rally, glove boom, crash, discontinued collection…).
-- **Legendary items:** 16 one-of-a-kind items from $250K to $100M, such as Karambit «Blue Gem #387», StatTrak Howl with 4× iBUYPOWER Holo, and simulator prototypes.
-- **203 cases:**
+- **Legendary items:** 31 one-of-a-kind items from $120K to $1B, such as Karambit «Blue Gem #387», StatTrak Howl with 4× iBUYPOWER Holo, and simulator prototypes.
+- **205 cases:**
   - 42 official CS2 cases with their real contents and odds (Mil-Spec 79.92% … ★ 0.26%, StatTrak 10%);
   - 150 major souvenir packages that drop Souvenir skins;
-  - 11 high-roller cases from $1 to $1,000,000.
+  - 13 high-roller cases from $1 to $100,000,000.
 - **Case battles** against bots, including on the most expensive cases.
 - **Mini-games:**
   - Jackpot;

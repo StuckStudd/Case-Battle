@@ -146,7 +146,7 @@ export const en = {
 
   // shop
   'shop.title': 'Shop',
-  'shop.subtitle': 'Buy virtual skins with your simulator balance. Prices change a little every day.',
+  'shop.subtitle': 'Buy virtual skins with your simulator balance. Prices move every hour.',
   'shop.affordable': 'Affordable only',
   'shop.stepTitle': 'Step 1 — buy your first skin',
   'shop.stepText': 'Tip: a cheap skin (under $5) lets you try several upgrades. Your balance: {balance}.',
@@ -738,6 +738,12 @@ export const en = {
   'admin.restoreTitle': "Restore “{name}”?",
   'admin.restoreText': "The current balance, items and progress are replaced by the restore point. Save a new point first if you may want them back.",
   'admin.restored': "Restore point loaded",
+
+  // additions: billionaire goals
+  'ach.rich1b.title': 'Billionaire',
+  'ach.rich1b.desc': 'Reach $1,000,000,000 net worth',
+  'ach.legend10.title': '♛ Hall of fame',
+  'ach.legend10.desc': 'Own 10 different legendary items at once',
 
   // load notices
   'load.corrupted': 'Saved data was corrupted',

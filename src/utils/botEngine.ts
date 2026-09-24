@@ -55,6 +55,8 @@ const WHALES: [string, number][] = [
   ['m0n0p0ly', 40_000_000],
   ['genesis_collector', 75_000_000],
   ['the_house', 150_000_000],
+  ['galaxy_brain', 1_200_000_000],
+  ['infinity_owner', 3_000_000_000],
 ];
 
 /** Simulated rivals: deterministic per bot, growing slowly day by day. */

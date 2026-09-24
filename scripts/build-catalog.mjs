@@ -202,6 +202,15 @@ async function main() {
     const list = priceLists.get(name);
     return list ? median(list) : 0;
   };
+  // Doppler / Gamma Doppler phases are sold as separate versions of the same market name.
+  const phasePrices = new Map();
+  for (const item of market) {
+    const price = item.suggested_price ?? item.median_price ?? item.min_price;
+    if (price && item.version) phasePrices.set(`${item.market_hash_name}|${item.version}`, price);
+  }
+  const phaseOf = (name, phase) => phasePrices.get(`${name}|${phase}`) ?? 0;
+  /** Skins nobody sells right now; priced from similar skins after the main pass. */
+  const unpriced = [];
 
   const previous = previousIds();
   const usedIds = new Set([...previous.values()].map((p) => p.id));
@@ -239,7 +248,10 @@ async function main() {
       min,
       max,
     );
-    if (!normal && !kept) continue;
+    if (!normal && !kept) {
+      unpriced.push({ skin, weapon, finish, category, rarity, min, max });
+      continue;
+    }
     let statTrak = null;
     if (!normal) {
       rows.push([old.id, weapon, finish, category, rarity, skin.collections?.[0]?.name ?? skin.crates?.[0]?.name ?? 'Other', old.float, min, max, imageHash(skin.image), kept, old.souvenir ?? []]);
@@ -285,7 +297,11 @@ async function main() {
       seen.add(hash);
       const price = priceOf(hash);
       const rarity = rarities[item.rarity?.name];
-      if (!price || !rarity) continue;
+      if (!rarity) continue;
+      if (!price) {
+        unpriced.push({ extra: true, item, weapon, finish: nameOf(item), category, rarity, collection: collectionOf(item) });
+        continue;
+      }
       const st = category === 'music' ? priceOf(`StatTrak™ ${hash}`) : 0;
       const finish = nameOf(item);
       const previousId = previous.get(`${weapon} | ${finish}`)?.id;
@@ -324,6 +340,73 @@ async function main() {
     (m) => m.market_hash_name,
     () => 'Music Kits',
   );
+
+  // Doppler and Gamma Doppler phases (Phase 1–4, Ruby, Sapphire, Black Pearl, Emerald) as their own items.
+  const idByName = new Map(rows.map((r) => [`${r[1]} | ${r[2]}`, r[0]]));
+  for (const skin of skins) {
+    if (!skin.phase) continue;
+    const plain = skin.name.replace(/^★ /, '');
+    const [weapon, finish] = plain.split(' | ');
+    const baseId = idByName.get(`${weapon} | ${finish}`);
+    if (!baseId) continue;
+    const min = skin.min_float ?? 0;
+    const max = skin.max_float ?? 0.08;
+    const normal = completeWears(WEARS.map((w) => phaseOf(`${skin.name} (${w})`, skin.phase)), min, max);
+    if (!normal) continue;
+    const statTrak = skin.stattrak ? completeWears(WEARS.map((w) => phaseOf(`★ StatTrak™ ${plain} (${w})`, skin.phase)), min, max) : null;
+    const id = `${baseId}-${slug(skin.phase)}`;
+    if (rows.some((r) => r[0] === id)) continue;
+    rows.push([
+      id,
+      weapon,
+      `${finish} (${skin.phase})`,
+      'knife',
+      'rare',
+      skin.crates?.[0]?.name ?? 'Other',
+      previous.get(`${weapon} | ${finish} (${skin.phase})`)?.float ?? defaultFloat(min, max),
+      min,
+      max,
+      imageHash(skin.image),
+      [...normal, ...(statTrak ?? [])].map(round2),
+      [],
+    ]);
+  }
+
+  // Skins with no listings at all: estimated from the median price of the same category and rarity.
+  const medianBy = new Map();
+  for (const r of rows) {
+    const key = `${r[3]}|${r[4]}`;
+    const price = r[10].slice(0, 5).find((p) => p > 0);
+    if (price) medianBy.set(key, [...(medianBy.get(key) ?? []), price]);
+  }
+  for (const u of unpriced) {
+    const estimate = median(medianBy.get(`${u.category}|${u.rarity}`) ?? [1]);
+    if (u.extra) {
+      const id = previous.get(`${u.weapon} | ${u.finish}`)?.id ?? slug(`${u.category} ${u.finish}`);
+      if (rows.some((r) => r[0] === id)) continue;
+      rows.push([id, u.weapon, u.finish, u.category, u.rarity, u.collection, 0, 0, 0, imageHash(u.item.image), [estimate, 0, 0, 0, 0].map(round2), []]);
+      continue;
+    }
+    const id = previous.get(`${u.weapon} | ${u.finish}`)?.id ?? slug(`${u.weapon} ${u.finish}`);
+    if (rows.some((r) => r[0] === id)) continue;
+    const fieldTested = WEAR_MULTIPLIER.map((m) => (estimate * m) / WEAR_MULTIPLIER[2]);
+    const normal = completeWears(fieldTested, u.min, u.max);
+    if (!normal) continue;
+    rows.push([
+      id,
+      u.weapon,
+      u.finish,
+      u.category,
+      u.rarity,
+      u.skin.collections?.[0]?.name ?? u.skin.crates?.[0]?.name ?? 'Other',
+      defaultFloat(u.min, u.max),
+      u.min,
+      u.max,
+      imageHash(u.skin.image),
+      [...normal, ...(u.skin.stattrak ? normal.map((p) => p * STATTRAK_FALLBACK) : [])].map(round2),
+      [],
+    ]);
+  }
 
   rows.sort((a, b) => a[10][2] - b[10][2] || a[0].localeCompare(b[0]));
   const q = (s) => `'${String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
